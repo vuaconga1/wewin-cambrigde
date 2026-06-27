@@ -229,14 +229,17 @@ export default function Navbar() {
 function Logo() {
   return (
     <>
-      <Link href={Routes.HOME} className="ml-2 sm:block relative group">
+      <Link
+        href={Routes.HOME}
+        className="ml-2 sm:block relative group overflow-hidden rounded-xl"
+      >
         <div
-          className="absolute inset-0 bg-linear-to-r from-amber-300 via-yellow-300 to-amber-300
+          className="pointer-events-none absolute inset-0 bg-linear-to-r from-amber-300 via-yellow-300 to-amber-300
                         rounded-full blur-lg opacity-0 group-hover:opacity-60 
                         transition-opacity duration-300"
         />
         <Image
-          src="/logo.png"
+          src="/assets/logo.png"
           alt="WeWIN Logo"
           width={200}
           height={180}

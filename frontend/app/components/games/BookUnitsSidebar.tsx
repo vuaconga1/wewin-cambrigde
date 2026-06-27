@@ -90,7 +90,7 @@ export function BookUnitsSidebar({
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
 
-  const asideClasses = `fixed md:static top-[72px] md:top-0 left-0 h-screen md:h-auto md:min-h-full md:self-stretch flex flex-col ${widthClass} ${isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"} md:flex overflow-visible z-40`;
+  const asideClasses = `fixed md:static top-0 md:top-0 left-0 h-screen md:h-auto md:min-h-full md:self-stretch flex flex-col ${widthClass} ${isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"} md:flex overflow-visible z-40`;
 
   return (
     <>

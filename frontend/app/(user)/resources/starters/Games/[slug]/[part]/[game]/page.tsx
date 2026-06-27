@@ -131,7 +131,7 @@ export default function StarterGamePartGamePage() {
     <div className="min-h-screen md:flex md:items-stretch">
       <button
         onClick={() => setSidebarOpen(true)}
-        className="fixed top-24 left-4 z-30 md:hidden w-10 h-10 flex items-center justify-center bg-[#1057C1] hover:bg-[#1057C1] text-white rounded-lg shadow-lg transition-colors"
+        className="fixed top-3 left-4 z-30 md:hidden w-10 h-10 flex items-center justify-center bg-[#1057C1] hover:bg-[#1057C1] text-white rounded-lg shadow-lg transition-colors"
         aria-label="Mở menu"
       >
         <Menu className="w-6 h-6" />

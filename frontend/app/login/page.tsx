@@ -125,7 +125,7 @@ export default function LoginPage() {
           >
             <div className="mb-12">
               <Image
-                src="/logo.png"
+                src="/assets/logo.png"
                 alt="WeWIN Education Logo"
                 width={480}
                 height={96}
@@ -204,7 +204,7 @@ export default function LoginPage() {
 
           <div className="lg:hidden flex justify-center mb-6">
             <Image
-              src="/logo.png"
+              src="/assets/logo.png"
               alt="WeWIN Education"
               width={160}
               height={40}

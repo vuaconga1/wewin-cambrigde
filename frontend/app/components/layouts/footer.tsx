@@ -36,7 +36,7 @@ export default function Footer() {
             >
               <div className="relative z-10 h-full flex items-center justify-center">
                 <Image
-                  src="/logo.png"
+                  src="/assets/logo.png"
                   alt="WeWIN Logo"
                   width={200}
                   height={180}

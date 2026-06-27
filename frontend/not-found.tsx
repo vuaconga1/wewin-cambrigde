@@ -147,7 +147,7 @@ export default function NotFoundPage() {
       {/* ✨ Signature WeWIN */}
       <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 flex items-center gap-2 sm:gap-3 opacity-40 hover:opacity-80 transition-all duration-300">
         <Image
-          src="/logo.png"
+          src="/assets/logo.png"
           alt="WeWIN Logo"
           width={32}
           height={32}

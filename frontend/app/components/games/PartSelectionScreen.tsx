@@ -110,7 +110,7 @@ export function PartSelectionScreen({
         <div className="relative pt-2 pb-2 px-4 sm:px-6 min-h-[72px] flex justify-center items-start">
           <button
             onClick={() => router.back()}
-            className="absolute left-4 sm:left-6 top-16 sm:top-20 inline-flex items-center gap-2 px-4 py-2.5 bg-slate-200 text-slate-700 rounded-xl shadow-sm hover:bg-slate-300 hover:shadow-md transition-all font-semibold"
+            className="absolute left-4 sm:left-6 top-2 inline-flex items-center gap-2 px-4 py-2.5 bg-slate-200 text-slate-700 rounded-xl shadow-sm hover:bg-slate-300 hover:shadow-md transition-all font-semibold"
             style={{ zIndex: 50 }}
           >
             <ArrowLeft className="w-5 h-5" />

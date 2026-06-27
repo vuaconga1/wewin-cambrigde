@@ -31,3 +31,10 @@ export const Routes = {
   MANAGE_STORAGE_HISTORY: "/storage/history",
   MANAGE_STORAGE_HISTORY_DETAIL: (id: string) => `/storage/history/${id}`,
 } as const;
+
+/** Trang game full-screen — không dùng navbar/footer global */
+export function isFullscreenGameRoute(pathname: string): boolean {
+  if (pathname.startsWith("/games/")) return true;
+  if (/\/Games(\/|$)/.test(pathname)) return true;
+  return false;
+}

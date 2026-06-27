@@ -807,7 +807,7 @@ return (
         {/* Back Button — absolute left */}
         <button
           onClick={() => router.back()}
-          className="absolute left-4 sm:left-6 top-16 sm:top-20 inline-flex items-center gap-2 px-4 py-2.5 bg-white/80 hover:bg-white text-slate-700 border border-slate-200/60 rounded-xl shadow-sm hover:shadow-md transition-all font-semibold"
+          className="absolute left-4 sm:left-6 top-2 inline-flex items-center gap-2 px-4 py-2.5 bg-white/80 hover:bg-white text-slate-700 border border-slate-200/60 rounded-xl shadow-sm hover:shadow-md transition-all font-semibold"
           style={{ zIndex: 50 }}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
@@ -868,7 +868,7 @@ return (
                     flex flex-col items-center gap-3 sm:gap-4 text-center pl-12 pr-4 md:px-4`}>
 
       <h1
-        className="text-xl sm:text-4xl md:text-5xl font-bold mb-2 md:mb-3 text-white drop-shadow-lg"
+        className="text-xl sm:text-4xl md:text-5xl font-bold mb-2 md:mb-3 text-white drop-shadow-lg break-words max-w-full px-2"
         style={{ textShadow: "0 12px 25px rgba(0,0,0,0.3)", color: "#0E4BA9" }}
       >
         {displayUnitName}
