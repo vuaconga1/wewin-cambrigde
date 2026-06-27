@@ -1,0 +1,46 @@
+import { Module } from '@nestjs/common';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { UserModule } from './user/user.module';
+import { RoleModule } from './role/role.module';
+import { ConfigModule } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from './auth/auth.module';
+import { PermissionModule } from './permission/permission.module';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { GameModule } from './game/game.module';
+import { VocabularyModule } from './vocabulary/vocabulary.module';
+import { StudentModule } from './student/student.module';
+import { LeaderboardModule } from './leaderboard/leaderboard.module';
+import { GameProgressModule } from './game-progress/game-progress.module';
+import { VocabImagesModule } from './vocab-images/vocab-images.module';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+    TypeOrmModule.forRoot({
+      type: 'postgres',
+      url: process.env.DATABASE_URL,
+      autoLoadEntities: true,
+      synchronize: true, // Dev = true, production = false
+      ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }, // SSL nếu là Neon/cloud, bỏ qua nếu local
+    }),
+    UserModule,
+    RoleModule,
+    AuthModule,
+    PermissionModule,
+    CloudinaryModule,
+    GameModule,
+    VocabularyModule,
+    StudentModule,
+    LeaderboardModule,
+    GameProgressModule,
+    VocabImagesModule,
+  ],
+
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
