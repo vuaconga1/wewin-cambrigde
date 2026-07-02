@@ -38,6 +38,47 @@ export class StudentService {
     return this.toPublic(student);
   }
 
+  /**
+   * Tìm-hoặc-tạo học sinh theo playerId (Mã HV).
+   * Dùng khi học sinh nhảy từ web báo bài sang web games: nếu Mã HV chưa có
+   * trong DB games thì tự động tạo mới, nếu có rồi thì trả về (và kích hoạt lại
+   * nếu trước đó đã bị vô hiệu hóa).
+   */
+  async ensureByPlayerId(playerId: string, name?: string) {
+    const normalized = playerId.trim();
+    const fallbackName = (name && name.trim()) || normalized;
+
+    const existing = await this.repo.findOne({
+      where: { playerId: normalized },
+    });
+
+    if (existing) {
+      let changed = false;
+      if (!existing.isActive) {
+        existing.isActive = true;
+        changed = true;
+      }
+      // Cập nhật tên nếu học sinh chưa có tên hợp lệ (tên đang trùng mã HV).
+      if (name && name.trim() && (!existing.name || existing.name === existing.playerId)) {
+        existing.name = name.trim();
+        changed = true;
+      }
+      if (changed) {
+        const saved = await this.repo.save(existing);
+        return this.toPublic(saved);
+      }
+      return this.toPublic(existing);
+    }
+
+    const student = this.repo.create({
+      playerId: normalized,
+      name: fallbackName,
+      isActive: true,
+    });
+    const saved = await this.repo.save(student);
+    return this.toPublic(saved);
+  }
+
   async create(dto: CreateStudentDto) {
     const normalized = dto.playerId.trim();
     const existing = await this.repo.findOne({

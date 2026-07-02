@@ -11,6 +11,21 @@ export const studentService = {
     return data;
   },
 
+  /**
+   * SSO nhẹ từ web báo bài: tìm học sinh theo Mã HV, nếu chưa có thì tạo mới.
+   * Dùng khi học sinh mở khu trò chơi được nhúng trong web báo bài.
+   */
+  async ensurePlayerId(
+    playerId: string,
+    name?: string,
+  ): Promise<StudentSession> {
+    const { data } = await publicClient.post<StudentSession>(
+      "/students/ensure",
+      { playerId, name },
+    );
+    return data;
+  },
+
   async getAll() {
     const { data } = await axiosClient.get<StudentSession[]>("/students");
     return data;

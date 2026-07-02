@@ -4,6 +4,7 @@ import "./globals.css";
 import Providers from "./components/providers";
 import ProvidersLayout from "./components/ProvidersLayout";
 import AuthHydrator from "./components/auth/authHydrator";
+import StudentSsoHydrator from "./components/auth/studentSsoHydrator";
 
 const lexend = Lexend({
   subsets: ["latin"],
@@ -34,6 +35,7 @@ export default function RootLayout({
         {/* ✅ Wrap toàn app trong SessionProvider */}
         <Providers>
           <AuthHydrator />
+          <StudentSsoHydrator />
           <ProvidersLayout>{children}</ProvidersLayout>
         </Providers>
       </body>

@@ -1,5 +1,17 @@
 import type { NextConfig } from "next";
 
+/** Parent portals allowed to embed WeWIN games via iframe */
+const FRAME_ANCESTORS = [
+  "'self'",
+  "https://wewin.baobai.edu.vn",
+  // Bản copy đang test chạy trên Google Apps Script (nội dung render trong iframe
+  // của Google). Cho phép các domain này để nhúng iframe khi test trên GAS.
+  "https://script.google.com",
+  "https://*.googleusercontent.com",
+  "http://localhost:*",
+  "http://127.0.0.1:*",
+].join(" ");
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
@@ -24,6 +36,19 @@ const nextConfig: NextConfig = {
     ],
   },
   turbopack: {},
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: `frame-ancestors ${FRAME_ANCESTORS}`,
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

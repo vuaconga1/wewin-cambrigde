@@ -12,7 +12,11 @@ async function bootstrap() {
 
   const corsOrigins = process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim())
-    : ['http://localhost:3000', 'https://wewin-education.vercel.app'];
+    : [
+        'http://localhost:3000',
+        'https://wewin-education.vercel.app',
+        'https://wewin-game.vercel.app',
+      ];
 
   app.enableCors({
     origin: corsOrigins,

@@ -12,6 +12,7 @@ import { StudentService } from './student.service';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { VerifyPlayerIdDto } from './dto/verify-player-id.dto';
+import { EnsurePlayerIdDto } from './dto/ensure-player-id.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 
 @Controller('students')
@@ -22,6 +23,15 @@ export class StudentController {
   @Post('verify')
   verify(@Body() body: VerifyPlayerIdDto) {
     return this.studentService.verifyByPlayerId(body.playerId);
+  }
+
+  /**
+   * Public — tự động đăng nhập từ web báo bài (SSO nhẹ).
+   * Tìm học sinh theo Mã HV; nếu chưa có trong DB games thì tạo mới rồi trả về.
+   */
+  @Post('ensure')
+  ensure(@Body() body: EnsurePlayerIdDto) {
+    return this.studentService.ensureByPlayerId(body.playerId, body.name);
   }
 
   @UseGuards(JwtAuthGuard)
