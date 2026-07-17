@@ -8,12 +8,15 @@ import { gameService } from "@/services/game.service";
 import type { UnitGameConfig } from "@/types/games";
 
 import { useBookPlayerId } from "@/lib/games/useBookPlayerId";
+import { ApiConnectionError } from "@/app/components/games/ApiConnectionError";
+import { ApiWakingLoader } from "@/app/components/games/ApiWakingLoader";
 
 export default function MoversGameSlugPage() {
   const params = useParams();
   const slug = params.slug as string;
   const [unit, setUnit] = useState<UnitGameConfig | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const onReloadClear = useCallback(() => {
@@ -41,21 +44,26 @@ export default function MoversGameSlugPage() {
   useEffect(() => {
     const fetchUnit = async () => {
       setLoading(true);
-      const data = await gameService.getGameBySlug(slug);
-      setUnit(data);
-      setLoading(false);
+      setFetchError(false);
+      try {
+        const data = await gameService.getGameBySlug(slug);
+        setUnit(data);
+      } catch {
+        setFetchError(true);
+        setUnit(null);
+      } finally {
+        setLoading(false);
+      }
     };
     void fetchUnit();
   }, [slug]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center text-blue-900 font-semibold">
-          Đang tải...
-        </div>
-      </div>
-    );
+    return <ApiWakingLoader label="Đang tải unit…" />;
+  }
+
+  if (fetchError) {
+    return <ApiConnectionError />;
   }
 
   if (!unit) {

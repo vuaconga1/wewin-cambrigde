@@ -2,6 +2,8 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 
+import { BackgroundMusicControls } from "@/app/components/audio";
+
 import { FantasyForestBackground } from "./FantasyForestBackground";
 import { ForestThemeProvider } from "./ForestThemeContext";
 import { SeasonThemeSwitcher } from "./SeasonThemeSwitcher";
@@ -37,6 +39,7 @@ export function ForestPageShell({
         {showThemeSwitcher && (
           <SeasonThemeSwitcher theme={theme} onChange={setTheme} />
         )}
+        <BackgroundMusicControls />
       </div>
     </ForestThemeProvider>
   );

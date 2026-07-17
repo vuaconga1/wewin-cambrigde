@@ -9,6 +9,7 @@ import { useParams, useRouter } from "next/navigation";
 
 import { useBookPlayerId } from "@/lib/games/useBookPlayerId";
 import { ApiConnectionError } from "@/app/components/games/ApiConnectionError";
+import { ApiWakingLoader } from "@/app/components/games/ApiWakingLoader";
 
 export default function StartersGameSlugPage() {
   const params = useParams();
@@ -59,13 +60,7 @@ export default function StartersGameSlugPage() {
   }, [slug]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center text-blue-900 font-semibold">
-          Đang tải...
-        </div>
-      </div>
-    );
+    return <ApiWakingLoader label="Đang tải unit…" />;
   }
 
   if (fetchError) {

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { gameService } from "@/services/game.service";
 import { ApiConnectionError } from "@/app/components/games/ApiConnectionError";
+import { ApiWakingLoader } from "@/app/components/games/ApiWakingLoader";
 
 export default function MoversGamesPage() {
   const router = useRouter();
@@ -29,12 +30,5 @@ export default function MoversGamesPage() {
     return <ApiConnectionError />;
   }
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-green-50 text-green-600 font-semibold">
-      <div className="text-center">
-        <div className="text-4xl mb-4">🎮</div>
-        <div>Đang mở Movers Games...</div>
-      </div>
-    </div>
-  );
+  return <ApiWakingLoader label="Đang mở Movers Games…" />;
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { gameService } from "@/services/game.service";
 import { ApiConnectionError } from "@/app/components/games/ApiConnectionError";
+import { ApiWakingLoader } from "@/app/components/games/ApiWakingLoader";
 
 export default function FlyersGamesPage() {
   const router = useRouter();
@@ -29,12 +30,5 @@ export default function FlyersGamesPage() {
     return <ApiConnectionError />;
   }
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-blue-50 text-blue-600 font-semibold">
-      <div className="text-center">
-        <div className="text-4xl mb-4">🎮</div>
-        <div>Đang mở Flyers Games...</div>
-      </div>
-    </div>
-  );
+  return <ApiWakingLoader label="Đang mở Flyers Games…" />;
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { gameService } from "@/services/game.service";
 import { ApiConnectionError } from "@/app/components/games/ApiConnectionError";
+import { ApiWakingLoader } from "@/app/components/games/ApiWakingLoader";
 
 export default function KidsGamesPage() {
   const router = useRouter();
@@ -30,12 +31,5 @@ export default function KidsGamesPage() {
     return <ApiConnectionError />;
   }
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-pink-50 to-rose-100 text-pink-600 font-semibold">
-      <div className="text-center">
-        <div className="text-4xl mb-4">🎮</div>
-        <div>Đang mở Kids Games...</div>
-      </div>
-    </div>
-  );
+  return <ApiWakingLoader label="Đang mở Kids Games…" />;
 }

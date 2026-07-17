@@ -9,6 +9,7 @@ import { useParams, useRouter } from "next/navigation";
 import type { UnitGameConfig } from "@/types/games";
 import { useBookPlayerId } from "@/lib/games/useBookPlayerId";
 import { ApiConnectionError } from "@/app/components/games/ApiConnectionError";
+import { ApiWakingLoader } from "@/app/components/games/ApiWakingLoader";
 
 export default function KidsGameSlugPage() {
   const params = useParams();
@@ -58,6 +59,10 @@ export default function KidsGameSlugPage() {
     };
     void fetchUnit();
   }, [slug]);
+
+  if (loading) {
+    return <ApiWakingLoader label="Đang tải unit…" />;
+  }
 
   if (fetchError) {
     return <ApiConnectionError />;
