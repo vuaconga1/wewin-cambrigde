@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { GameKey } from "@/types/games";
+import { useGameSeasonTheme } from "@/app/components/games/forest-background";
 
 type UnitProgressProps = {
   title: string;
@@ -31,6 +32,7 @@ export function UnitProgress({
   externalIsOpen,
   onExternalToggle,
 }: UnitProgressProps) {
+  const { ui } = useGameSeasonTheme("menu");
   const allCompleted = games.every((key) => progress[key]);
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   
@@ -48,12 +50,12 @@ export function UnitProgress({
   const totalScore = games.reduce((sum, key) => sum + (scores[key] || 0), 0);
 
   return (
-    <div className="fixed bottom-4 right-4 z-[1001] flex flex-col items-end gap-2">
+    <div className="fixed bottom-4 left-3 right-auto sm:left-auto sm:right-4 z-[1001] flex flex-col items-start sm:items-end gap-2 max-w-[calc(100%-1.5rem)]">
       {/* Nút thu gọn / mở rộng */}
       <button
         data-progress-button
         onClick={toggleOpen}
-        className="flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-lg shadow-blue-500/20 border border-blue-400/20 hover:from-blue-700 hover:to-indigo-700 hover:shadow-xl hover:scale-102 transition-all duration-300"
+        className={`flex items-center gap-2 rounded-full px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-lg border hover:shadow-xl hover:scale-102 transition-all duration-300 ${ui.primaryBtn || "bg-gradient-to-r from-blue-600 to-indigo-600 border-blue-400/20 shadow-blue-500/20 hover:from-blue-700 hover:to-indigo-700"}`}
       >
         <span>📊</span>
         <span className="hidden sm:inline">
@@ -67,9 +69,9 @@ export function UnitProgress({
 
       {/* Panel chi tiết - chỉ render khi mở để tránh che mất các phần tử khác */}
       {isOpen && (
-        <div className="origin-bottom-right transform transition-all duration-300 scale-100 opacity-100 translate-y-0 animate-fadeIn">
-          <div className="bg-white/95 backdrop-blur-md p-5 sm:p-6 rounded-3xl shadow-2xl border border-slate-200/80 text-sm max-w-xs">
-          <h3 className="text-slate-800 mb-4 text-base sm:text-lg font-bold flex items-center gap-2 border-b border-slate-100 pb-2">
+        <div className="origin-bottom-left sm:origin-bottom-right transform transition-all duration-300 scale-100 opacity-100 translate-y-0 animate-fadeIn">
+          <div className={`p-5 sm:p-6 rounded-3xl shadow-2xl border text-sm max-w-xs ${ui.panel} ${ui.panelBorder}`}>
+          <h3 className={`mb-4 text-base sm:text-lg font-bold flex items-center gap-2 border-b pb-2 ${ui.heading} ${ui.statDivider}`}>
             <span>📊</span>
             <span className="truncate max-w-[180px]">{title}</span>
           </h3>
@@ -83,9 +85,7 @@ export function UnitProgress({
                 <div
                   key={key}
                   className={`flex items-center justify-between p-2 rounded-xl transition-all border ${
-                    isDone
-                      ? "bg-emerald-50/50 text-emerald-900 border-emerald-100"
-                      : "bg-slate-50 text-slate-700 border-slate-100"
+                    isDone ? ui.statusSuccess : `${ui.statBg} ${ui.subtext} border-slate-100`
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -94,7 +94,7 @@ export function UnitProgress({
                   </div>
                   <div className="flex items-center">
                     {isDone ? (
-                      <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ui.statusSuccess}`}>
                         {score > 0 ? `${score}đ` : "Xong"}
                       </span>
                     ) : (

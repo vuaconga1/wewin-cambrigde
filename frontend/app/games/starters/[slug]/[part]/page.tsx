@@ -6,7 +6,7 @@ import { UnitGameScreen } from "@/app/components/games/UnitGameScreen";
 import { StarterUnitsSidebar } from "@/app/components/games/StarterUnitsSidebar";
 import { gameService } from "@/services/game.service";
 import type { UnitGameConfig } from "@/types/games";
-import { Menu } from "lucide-react";
+
 
 function getSavedPlayerId(): string {
   if (typeof window === "undefined") return "";
@@ -85,18 +85,15 @@ export default function StartersGamePartPage() {
 
   return (
     <div className="min-h-screen md:flex md:items-stretch">
-      <button
-        onClick={() => setSidebarOpen(true)}
-        className="fixed top-3 left-3 z-30 md:hidden w-10 h-10 flex items-center justify-center bg-[#1057C1] hover:bg-[#0c3e8c] text-white rounded-lg shadow-lg transition-colors"
-        aria-label="Mở menu"
-      >
-        <Menu className="w-6 h-6" />
-      </button>
-
-      <StarterUnitsSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} basePath="/games/starters" />
+      <StarterUnitsSidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        basePath="/games/starters"
+      />
 
       <div className="flex-1 md:ml-0 md:min-h-screen">
         <UnitGameScreen
+          onOpenUnitsSidebar={() => setSidebarOpen(true)}
           unit={unit}
           heading={unit.name}
           subheading={unit.bookname}

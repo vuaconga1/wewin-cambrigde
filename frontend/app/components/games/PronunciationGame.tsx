@@ -1,10 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { PronunciationGameConfig } from "@/types/games";
+import type { PronunciationGameConfig, WordItem } from "@/types/games";
+import { AnswerFeedback } from "@/app/components/games/AnswerFeedback";
 import { GameSummaryModal } from "@/app/components/games/GameSummaryModal";
+import { SpeedScoreBar } from "@/app/components/games/SpeedScoreBar";
+import { useAnswerFeedback } from "@/app/components/games/useAnswerFeedback";
+import { useSpeedScoreTimer } from "@/app/components/games/useSpeedScoreTimer";
+import { shuffleArray } from "@/app/utils/gameWordPool";
+import { SPEED_SCORE_MAX } from "@/app/utils/speedScore";
 import { playWordAudio } from "@/app/utils/playWordAudio";
 import { WordVisual } from "@/app/components/games/WordVisual";
+import {
+  SeasonGamePanel,
+  useGameSeasonTheme,
+} from "@/app/components/games/forest-background";
 
 type Props = PronunciationGameConfig & {
   onComplete?: (score: number) => void;
@@ -37,6 +47,8 @@ export function PronunciationGame({
   onComplete,
   onChooseOtherGame,
 }: Props) {
+  const { ui } = useGameSeasonTheme("speak");
+  const [playWords, setPlayWords] = useState<WordItem[]>(words);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [correctCount, setCorrectCount] = useState(0);
@@ -48,14 +60,33 @@ export function PronunciationGame({
   );
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const [isSupported, setIsSupported] = useState(false);
+  const { feedback, trigger: triggerFeedback } = useAnswerFeedback();
+  const speedTimer = useSpeedScoreTimer();
   const [completed, setCompleted] = useState(false);
   const [wrongCount, setWrongCount] = useState(0);
 
-  const currentWord = words[currentIndex];
+
+  useEffect(() => {
+    setPlayWords(shuffleArray(words));
+    setCurrentIndex(0);
+    setScore(0);
+    setCorrectCount(0);
+    setWrongCount(0);
+    setCompleted(false);
+    setStatus("Nhấn 'Nghe từ' để bắt đầu nhé! 🎧");
+    setStatusType("info");
+  }, [words]);
+
+  const currentWord = playWords[currentIndex];
   const progress = useMemo(
-    () => ((currentIndex + 1) / words.length) * 100,
-    [currentIndex, words.length],
+    () => ((currentIndex + 1) / Math.max(playWords.length, 1)) * 100,
+    [currentIndex, playWords.length],
   );
+
+  useEffect(() => {
+    speedTimer.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset on new word
+  }, [currentIndex]);
 
   useEffect(() => {
     // Kiểm tra hỗ trợ Speech Recognition
@@ -76,7 +107,9 @@ export function PronunciationGame({
 
       recognition.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript.toLowerCase().trim();
-        checkPronunciation(transcript, currentWord.text);
+        if (currentWord?.text) {
+          checkPronunciation(transcript, currentWord.text);
+        }
       };
 
       recognition.onerror = () => {
@@ -91,7 +124,7 @@ export function PronunciationGame({
 
       recognitionRef.current = recognition;
     }
-  }, [currentWord.text]);
+  }, [currentWord?.text]);
 
   const stopRecording = useCallback(() => {
     setIsRecording(false);
@@ -136,45 +169,29 @@ export function PronunciationGame({
       const cleanTranscript = transcript.replace(/[^\w\s]/g, "").trim();
       const cleanCorrect = correctWord.toLowerCase();
       const similarity = calculateSimilarity(cleanTranscript, cleanCorrect);
-      const contains =
+      const isCorrect =
+        cleanTranscript === cleanCorrect ||
         cleanTranscript.includes(cleanCorrect) ||
-        cleanCorrect.includes(cleanTranscript);
-      const isPerfect = cleanTranscript === cleanCorrect;
-      const isVeryGood = contains || similarity >= 0.8;
-      const isGood = similarity >= 0.6;
-      const isCorrect = isPerfect || isVeryGood || isGood;
+        cleanCorrect.includes(cleanTranscript) ||
+        calculateSimilarity(cleanTranscript, cleanCorrect) >= 0.6;
 
       if (isCorrect) {
-        let pointsEarned = 0;
-        if (isPerfect) {
-          pointsEarned = 15;
-          setStatus(
-            `🎉 Hoàn hảo! Phát âm chính xác 100%! +15 điểm (Tổng: ${score + pointsEarned} điểm)`,
-          );
-        } else if (isVeryGood) {
-          pointsEarned = 12;
-          setStatus(
-            `🌟 Rất tốt! Phát âm gần như hoàn hảo! +12 điểm (Tổng: ${score + pointsEarned} điểm)`,
-          );
-        } else {
-          pointsEarned = 10;
-          setStatus(
-            `👍 Tốt! Phát âm đúng! +10 điểm (Tổng: ${score + pointsEarned} điểm)`,
-          );
-        }
+        triggerFeedback("correct");
+        const pointsEarned = speedTimer.claimScore();
+        const nextScore = score + pointsEarned;
         setScore((prev) => prev + pointsEarned);
         setCorrectCount((prev) => prev + 1);
+        setStatus(`🎉 Tuyệt vời! +${pointsEarned} điểm (Tổng: ${nextScore} điểm)`);
         setStatusType("correct");
       } else {
-        setScore((prev) => Math.max(0, prev - 3));
+        triggerFeedback("wrong");
+        speedTimer.reset();
         setWrongCount((prev) => prev + 1);
-        setStatus(
-          `Bạn nói "${transcript}". Thử lại nhé! 💪 -3 điểm (Tổng: ${Math.max(0, score - 3)} điểm)`,
-        );
+        setStatus(`Bạn nói "${transcript}". Thử lại nhé! 💪 (Tổng: ${score} điểm)`);
         setStatusType("warning");
       }
     },
-    [score, calculateSimilarity],
+    [score, calculateSimilarity, triggerFeedback, speedTimer],
   );
 
   const handleListen = useCallback(() => {
@@ -215,18 +232,20 @@ export function PronunciationGame({
     if (isRecording) {
       recognitionRef.current.stop();
     } else {
+      speedTimer.start();
       try {
         recognitionRef.current.start();
       } catch {
         setStatus("Không thể bắt đầu ghi âm. Bạn thử lại nhé!");
         setStatusType("warning");
+        speedTimer.reset();
         stopRecording();
       }
     }
-  }, [isSupported, isSpeaking, isRecording, stopRecording]);
+  }, [isSupported, isSpeaking, isRecording, stopRecording, speedTimer]);
 
   const handleNext = useCallback(() => {
-    if (currentIndex >= words.length - 1) {
+    if (currentIndex >= playWords.length - 1) {
       setStatus(
         `🎉 Xuất sắc! Bạn đã hoàn thành tất cả các từ! Tổng điểm: ${score} điểm`,
       );
@@ -240,9 +259,10 @@ export function PronunciationGame({
     setCurrentIndex((prev) => prev + 1);
     setStatus("Nhấn 'Nghe từ' để tiếp tục học từ mới!");
     setStatusType("info");
-  }, [completed, currentIndex, onComplete, score, words.length]);
+  }, [completed, currentIndex, onComplete, score, playWords.length]);
 
   const handleReset = useCallback(() => {
+    setPlayWords(shuffleArray(words));
     setCurrentIndex(0);
     setScore(0);
     setCorrectCount(0);
@@ -250,15 +270,23 @@ export function PronunciationGame({
     setStatus("Nhấn 'Nghe từ' để bắt đầu nhé! 🎧");
     setStatusType("info");
     setCompleted(false);
-  }, []);
+  }, [words]);
+
+  if (!currentWord) return null;
 
   return (
-    <section className="min-h-screen bg-gradient-to-b from-green-50 via-emerald-50 to-cyan-100 bg-fixed py-8 sm:py-10 px-3 sm:px-4 md:px-6">
-      <div className="rounded-2xl border border-green-100 bg-white/95 p-4 sm:p-6 shadow-xl max-w-5xl mx-auto">
+    <SeasonGamePanel game="speak" maxWidth="5xl">
+        <AnswerFeedback feedback={feedback} />
         <header className="text-center">
-          <h2 className="text-xl sm:text-2xl font-semibold text-green-900">
+          <h2 className={`text-xl sm:text-2xl font-semibold ${ui.heading}`}>
             {title}
           </h2>
+          <SpeedScoreBar
+            theme="speak"
+            score={score}
+            maxScore={Math.max(playWords.length, 1) * SPEED_SCORE_MAX}
+            visible={!completed}
+          />
         </header>
 
         {!isSupported && (
@@ -268,7 +296,7 @@ export function PronunciationGame({
           </div>
         )}
 
-        <div className="mt-4 rounded-lg bg-yellow-50 p-4 text-sm sm:text-base text-yellow-800">
+        <div className={`mt-4 rounded-lg p-4 text-sm sm:text-base ${ui.statusInfo}`}>
           <p className="font-semibold">📝 Cách chơi:</p>
           <ol className="mt-2 list-decimal list-inside space-y-1">
             <li>Nhấn "Nghe từ" để nghe phát âm chuẩn.</li>
@@ -277,28 +305,24 @@ export function PronunciationGame({
           </ol>
         </div>
 
-        <div className="mt-4 flex flex-col sm:flex-row gap-4 rounded-xl bg-white p-4 shadow-sm">
-          <div className="flex-1 text-center">
-            <div className="text-sm sm:text-base text-green-600">⭐ Điểm</div>
-            <div className="text-xl sm:text-2xl font-bold text-green-900">
-              {score}
-            </div>
+        <div className={`mt-4 flex items-center justify-around gap-2 rounded-xl px-3 py-2 shadow-sm divide-x ${ui.statBg} ${ui.statDivider}`}>
+          <div className="flex-1 flex items-center justify-center gap-1.5">
+            <span className={`text-xs sm:text-sm ${ui.label}`}>⭐ Điểm</span>
+            <span className={`text-lg sm:text-xl font-bold ${ui.heading}`}>{score}</span>
           </div>
-          <div className="flex-1 text-center">
-            <div className="text-sm sm:text-base text-green-600">📚 Từ</div>
-            <div className="text-xl sm:text-2xl font-bold text-green-900">
-              {currentIndex + 1}/{words.length}
-            </div>
+          <div className="flex-1 flex items-center justify-center gap-1.5">
+            <span className={`text-xs sm:text-sm ${ui.label}`}>📚 Từ</span>
+            <span className={`text-lg sm:text-xl font-bold ${ui.heading}`}>
+              {currentIndex + 1}/{playWords.length}
+            </span>
           </div>
-          <div className="flex-1 text-center">
-            <div className="text-sm sm:text-base text-green-600">✅ Đúng</div>
-            <div className="text-xl sm:text-2xl font-bold text-green-900">
-              {correctCount}
-            </div>
+          <div className="flex-1 flex items-center justify-center gap-1.5">
+            <span className={`text-xs sm:text-sm ${ui.label}`}>✅ Đúng</span>
+            <span className={`text-lg sm:text-xl font-bold ${ui.heading}`}>{correctCount}</span>
           </div>
         </div>
 
-        <div className="mt-6 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 p-6 sm:p-8 text-center text-white shadow-lg">
+        <div className={`mt-6 rounded-2xl p-6 sm:p-8 text-center text-white shadow-lg ${ui.hero}`}>
           <WordVisual
             icon={currentWord.icon}
             emoji={currentWord.emoji}
@@ -320,11 +344,11 @@ export function PronunciationGame({
           <button
             onClick={handleListen}
             disabled={isSpeaking}
-            className={`rounded-xl px-6 py-3 font-bold text-white transition ${
+            className={`rounded-xl px-6 py-3 font-bold text-white transition w-full sm:w-auto ${
               isSpeaking
                 ? "bg-gray-400 cursor-not-allowed"
-                : "bg-[#1057C1] hover:bg-[#1057C1] hover:shadow-lg"
-            } w-full sm:w-auto`}
+                : ui.primaryBtn
+            }`}
           >
             🔊 Nghe từ
           </button>
@@ -343,11 +367,11 @@ export function PronunciationGame({
           </button>
           <button
             onClick={
-              currentIndex >= words.length - 1 ? handleReset : handleNext
+              currentIndex >= playWords.length - 1 ? handleReset : handleNext
             }
-            className="rounded-xl bg-[#1057C1] px-6 py-3 font-bold text-white transition hover:bg-[#1057C1] hover:shadow-lg w-full sm:w-auto"
+            className={`rounded-xl px-6 py-3 font-bold text-white transition w-full sm:w-auto ${ui.primaryBtn}`}
           >
-            {currentIndex >= words.length - 1
+            {currentIndex >= playWords.length - 1
               ? "🔄 Chơi lại"
               : "➡️ Từ tiếp theo"}
           </button>
@@ -356,33 +380,33 @@ export function PronunciationGame({
         <div
           className={`mt-6 rounded-xl p-4 text-center text-base sm:text-lg font-bold ${
             statusType === "correct"
-              ? "bg-green-100 text-green-800"
+              ? ui.statusSuccess
               : statusType === "warning"
                 ? "bg-orange-100 text-orange-800"
-                : "bg-green-100 text-green-800"
+                : ui.statusInfo
           }`}
         >
           {status}
         </div>
 
-        <div className="mt-4 h-2 rounded-full bg-gray-200 overflow-hidden">
+        <div className={`mt-4 h-2 rounded-full overflow-hidden ${ui.progressTrack}`}>
           <div
-            className="h-full bg-gradient-to-r from-green-400 to-emerald-600 transition-all duration-300"
+            className={`h-full transition-all duration-300 ${ui.progressFill}`}
             style={{ width: `${progress}%` }}
           />
         </div>
 
         <GameSummaryModal
           open={completed}
+          game="speak"
           score={score}
           correctCount={correctCount}
           wrongCount={wrongCount}
-          totalCount={words.length}
+          totalCount={playWords.length}
           onPlayAgain={handleReset}
           onChooseOtherGame={onChooseOtherGame}
         />
-      </div>
-    </section>
+    </SeasonGamePanel>
   );
 }
 

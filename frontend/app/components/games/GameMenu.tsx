@@ -17,6 +17,9 @@ import type {
 import { DEFAULT_ENABLED_GAMES, type WordAudioContext } from "@/types/games";
 import { bookTypeFromPathname } from "@/app/utils/playWordAudio";
 import {
+  useGameSeasonTheme,
+} from "@/app/components/games/forest-background";
+import {
   Volume2,
   Mic,
   Brain,
@@ -129,6 +132,7 @@ export function GameMenu({
   const [isPending, startTransition] = useTransition();
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [cardSize, setCardSize] = useState({ width: 408, height: 504 });
+  const { ui: menuUi } = useGameSeasonTheme("menu");
 
   useEffect(() => {
     const updateCardSize = () => {
@@ -452,22 +456,29 @@ export function GameMenu({
 
       if (hideOnMobile) return null;
 
+      const hasImageBg =
+        slot.card.type === "scramble" ||
+        slot.card.type === "speak" ||
+        slot.card.type === "memory" ||
+        slot.card.type === "ordering" ||
+        slot.card.type === "flip";
+
       return (
         <button
           key={`${slot.position}-${slot.card.type}`}
           type="button"
           onClick={() => selectCard(slot.card.type, slot.position)}
-          className={`group absolute rounded-2xl md:rounded-[2rem] border bg-gradient-to-br text-center cursor-pointer transition-[transform,opacity,filter,box-shadow] duration-500 ease-out will-change-transform hover:scale-[1.02] ${
+          className={`group absolute overflow-hidden rounded-2xl md:rounded-[2rem] border bg-gradient-to-br text-center cursor-pointer transition-[transform,opacity,filter,box-shadow] duration-500 ease-out will-change-transform hover:scale-[1.02] ${
             slot.card.type === "flip"
-              ? "overflow-hidden bg-emerald-400 border-emerald-300"
+              ? "bg-emerald-400 border-emerald-300"
               : slot.card.type === "scramble"
-              ? "overflow-hidden bg-[url('/assets/wordscramble.png')] bg-cover bg-center bg-no-repeat"
+              ? "bg-[url('/assets/wordscramble.png')] bg-cover bg-center bg-no-repeat"
               : slot.card.type === "speak"
-              ? "overflow-hidden bg-[url('/assets/pronunciation.png')] bg-cover bg-center bg-no-repeat"
+              ? "bg-[url('/assets/pronunciation.png')] bg-cover bg-center bg-no-repeat"
               : slot.card.type === "memory"
-              ? "overflow-hidden bg-[url('/assets/memory.png')] bg-cover bg-center bg-no-repeat"
+              ? "bg-[url('/assets/memory.png')] bg-cover bg-center bg-no-repeat"
               : slot.card.type === "ordering"
-              ? "overflow-hidden bg-[url('/assets/wordordering.png')] bg-cover bg-center bg-no-repeat"
+              ? "bg-[url('/assets/wordordering.png')] bg-cover bg-center bg-no-repeat"
               : slot.card.accentClass
           } ${
             isCenter
@@ -486,14 +497,14 @@ export function GameMenu({
           )}
 
           {progressDone && (
-            <span className="absolute top-3 right-3 flex items-center gap-1 px-2 py-0.5 text-[10px] sm:text-xs font-bold text-emerald-700 bg-emerald-100 rounded-full border border-emerald-200 shadow-xs animate-fadeIn">
+            <span className="absolute top-3 right-3 z-20 flex items-center gap-1 px-2 py-0.5 text-[10px] sm:text-xs font-bold text-emerald-700 bg-emerald-100 rounded-full border border-emerald-200 shadow-xs animate-fadeIn">
               <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               <span>{score > 0 ? `${score}đ` : "Xong"}</span>
             </span>
           )}
 
-          <div className="h-full w-full flex flex-col items-center justify-center px-6 sm:px-8 py-6 sm:py-8">
-            {slot.card.type !== "scramble" && slot.card.type !== "speak" && slot.card.type !== "memory" && slot.card.type !== "ordering" ? (
+          <div className="relative z-10 h-full w-full flex flex-col items-center justify-center px-6 sm:px-8 py-6 sm:py-8">
+            {!hasImageBg ? (
               <>
                 <div
                   className={`flex items-center justify-center rounded-2xl bg-gradient-to-br ${slot.card.iconWrapClass} ${
@@ -541,7 +552,7 @@ export function GameMenu({
 
   if (currentView !== "menu") {
     return (
-      <div className="w-full min-h-screen bg-transparent py-6 md:py-10 px-12 md:px-6">
+      <div className="w-full min-h-screen bg-transparent py-4 sm:py-6 md:py-10 px-3 sm:px-4 md:px-6">
         <div className="w-full text-black max-w-5xl mx-auto">
           {currentView === "flip" && (
             <FlipCardGame
@@ -587,7 +598,7 @@ export function GameMenu({
   const carouselHeight = isDesktop ? 580 : cardSize.height + 40;
 
   return (
-    <div className="min-h-screen bg-transparent pl-12 pr-4 py-6 md:pl-4 md:pr-4 md:py-10 md:px-6">
+    <div className="min-h-screen bg-transparent px-3 sm:px-4 py-6 md:py-10 md:px-6">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-4 md:mb-6">
           {description && (
@@ -606,7 +617,7 @@ export function GameMenu({
               <button
                 type="button"
                 onClick={() => moveCard(-1)}
-                className="absolute -left-2 md:left-0 lg:left-2 top-1/2 -translate-y-1/2 z-40 flex h-9 w-9 md:h-12 md:w-12 items-center justify-center rounded-full border border-white/40 bg-white/80 text-blue-700 shadow-lg backdrop-blur-md transition hover:bg-white hover:scale-105"
+                className={`absolute -left-2 md:left-0 lg:left-2 top-1/2 -translate-y-1/2 z-40 flex h-9 w-9 md:h-12 md:w-12 items-center justify-center rounded-full border shadow-lg backdrop-blur-md transition hover:scale-105 ${menuUi.secondaryBtn || "border-white/40 bg-white/80 hover:bg-white"}`}
                 aria-label="Qua card trước"
               >
                 <ChevronLeft className="h-5 w-5 md:h-6 md:w-6" />
@@ -614,7 +625,7 @@ export function GameMenu({
               <button
                 type="button"
                 onClick={() => moveCard(1)}
-                className="absolute -right-2 md:right-0 lg:right-2 top-1/2 -translate-y-1/2 z-40 flex h-9 w-9 md:h-12 md:w-12 items-center justify-center rounded-full border border-white/40 bg-white/80 text-blue-700 shadow-lg backdrop-blur-md transition hover:bg-white hover:scale-105"
+                className={`absolute -right-2 md:right-0 lg:right-2 top-1/2 -translate-y-1/2 z-40 flex h-9 w-9 md:h-12 md:w-12 items-center justify-center rounded-full border shadow-lg backdrop-blur-md transition hover:scale-105 ${menuUi.secondaryBtn || "border-white/40 bg-white/80 hover:bg-white"}`}
                 aria-label="Qua card tiếp theo"
               >
                 <ChevronRight className="h-5 w-5 md:h-6 md:w-6" />
@@ -642,8 +653,8 @@ export function GameMenu({
                 onClick={() => setActiveCardIndex(index)}
                 className={`h-2.5 rounded-full transition-all duration-300 ${
                   index === activeCardIndex
-                    ? "w-8 bg-blue-600"
-                    : "w-2.5 bg-blue-300 hover:bg-blue-400"
+                    ? `w-8 ${menuUi.progressFill}`
+                    : `${menuUi.progressTrack} w-2.5 hover:opacity-80`
                 }`}
                 aria-label={`Chọn ${card.title}`}
               />

@@ -16,6 +16,8 @@ import { UnitProgress } from "@/app/components/games/UnitProgress";
 import { PartSelectionScreen } from "@/app/components/games/PartSelectionScreen";
 import Notification from "@/app/components/notification";
 import { RightLeaderboardSidebar } from "@/app/components/games/RightLeaderboardSidebar";
+import { GameMobileToolbar } from "@/app/components/games/GameMobileToolbar";
+import { ForestPageShell } from "@/app/components/games/forest-background";
 
 import type { GameKey, UnitGameConfig } from "@/types/games";
 import { DEFAULT_ENABLED_GAMES } from "@/types/games";
@@ -45,6 +47,8 @@ type UnitGameScreenProps = {
   onPlayerIdSubmit?: (id: string) => void;
   onPlayerIdSkip?: () => void;
   unitIndex?: number;
+  /** Mở sidebar danh sách Unit (mobile toolbar) */
+  onOpenUnitsSidebar?: () => void;
 };
 
 type ProgressState = Record<GameKey, boolean>;
@@ -118,6 +122,7 @@ export function UnitGameScreen({
   onPlayerIdSubmit: externalOnPlayerIdSubmit,
   onPlayerIdSkip: externalOnPlayerIdSkip,
   unitIndex,
+  onOpenUnitsSidebar,
 }: UnitGameScreenProps) {
 
   const displayUnitName = unit.name;
@@ -236,7 +241,7 @@ const [selectedPartId, setSelectedPartId] = useState(() => {
 
   const studentSession = useStudentStore((s) => s.session);
 
-  const [leaderboardOpen, setLeaderboardOpen] = useState(true);
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [leaderboardRefreshToken, setLeaderboardRefreshToken] = useState(0);
 
   /* ---------------------------------------------------
@@ -778,7 +783,7 @@ const goToMenu = () => {
 // Nếu đang ở chế độ chọn part và có nhiều part, hiển thị màn chọn part
 if (mode === "select" && multipleParts) {
   return (
-    <>
+    <ForestPageShell showThemeSwitcher>
       <PartSelectionScreen
         unit={unit}
         heading={heading}
@@ -786,36 +791,48 @@ if (mode === "select" && multipleParts) {
         showBreadcrumb={showBreadcrumb}
         breadcrumbBackUrl={breadcrumbBackUrl}
         breadcrumbBackLabel={breadcrumbBackLabel}
+        onOpenUnitsSidebar={onOpenUnitsSidebar}
       />
       <PlayerIdModal
         isOpen={showIdModal}
         onSubmit={handleSubmitPlayerId}
         onSkip={handleSkipPlayerId}
       />
-    </>
+    </ForestPageShell>
   );
 }
 
 return (
-  <div className="min-h-screen bg-transparent pb-20">
+  <ForestPageShell showThemeSwitcher={currentView === "menu"}>
+  <div className="min-h-screen bg-transparent pb-24 md:pb-20">
 
-    {/* ---------------------------------------------------
-          Breadcrumb + Back Button (unified layout)
-    -----------------------------------------------------*/}
+    <GameMobileToolbar
+      onBack={() => router.back()}
+      onOpenUnits={onOpenUnitsSidebar}
+      onToggleLeaderboard={() => setLeaderboardOpen((v) => !v)}
+      showLeaderboard={currentView !== "menu"}
+      title={
+        currentView === "menu"
+          ? displayUnitName
+          : GAME_TITLES[currentView]
+      }
+      subtitle={
+        currentView !== "menu" ? displayUnitName : undefined
+      }
+    />
+
+    {/* Breadcrumb — desktop only */}
     {showBreadcrumb && (
-      <div className="relative pt-2 pb-2 px-4 sm:px-6 min-h-[52px] flex justify-center items-start">
-        {/* Back Button — absolute left */}
+      <div className="hidden md:flex relative pt-2 pb-2 px-6 min-h-[52px] items-center justify-center gap-4">
         <button
           onClick={() => router.back()}
-          className="absolute left-4 sm:left-6 top-2 inline-flex items-center gap-2 px-4 py-2.5 bg-white/80 hover:bg-white text-slate-700 border border-slate-200/60 rounded-xl shadow-sm hover:shadow-md transition-all font-semibold"
-          style={{ zIndex: 50 }}
+          className="absolute left-6 top-2 inline-flex items-center gap-2 px-4 py-2.5 bg-white/80 hover:bg-white text-slate-700 border border-slate-200/60 rounded-xl shadow-sm hover:shadow-md transition-all font-semibold z-20"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
           <span>Back</span>
         </button>
 
-        {/* Breadcrumb — centered */}
-        <nav className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-5 py-2.5 sm:py-3
+        <nav className="inline-flex items-center gap-3 px-5 py-3
                         bg-white/90 backdrop-blur-sm rounded-xl border border-gray-200/80
                         shadow-md hover:shadow-lg transition-all">
 
@@ -861,11 +878,9 @@ return (
       </div>
     )}
 
-    {/* ---------------------------------------------------
-          Header — Title + Back Button
-    -----------------------------------------------------*/}
-    <div className={`max-w-7xl mx-auto pt-4 sm:pt-6 mb-4 sm:mb-6 
-                    flex flex-col items-center gap-3 sm:gap-4 text-center pl-12 pr-4 md:px-4`}>
+    {/* Title — desktop only (mobile: toolbar) */}
+    <div className={`hidden md:flex max-w-7xl mx-auto pt-6 mb-6 
+                    flex-col items-center gap-4 text-center px-4`}>
 
       <h1
         className="text-xl sm:text-4xl md:text-5xl font-bold mb-2 md:mb-3 text-white drop-shadow-lg break-words max-w-full px-2"
@@ -943,6 +958,7 @@ return (
       onClose={() => setNotificationVisible(false)}
     />
   </div>
+  </ForestPageShell>
 );
 }
 

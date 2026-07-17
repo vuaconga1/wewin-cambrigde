@@ -5,7 +5,7 @@ import { UnitGameScreen } from "@/app/components/games/UnitGameScreen";
 import { KidsUnitsSidebar } from "@/app/components/games/KidsUnitsSidebar";
 import { gameService } from "@/services/game.service";
 import { useParams, useRouter } from "next/navigation";
-import { Menu } from "lucide-react";
+
 import type { UnitGameConfig } from "@/types/games";
 import { useBookPlayerId } from "@/lib/games/useBookPlayerId";
 import { ApiConnectionError } from "@/app/components/games/ApiConnectionError";
@@ -77,16 +77,8 @@ export default function KidsGameSlugPage() {
   }
 
   return (
-    <div className="min-h-screen md:flex md:items-stretch bg-gradient-to-b from-blue-50 via-blue-50 to-blue-100 bg-fixed">
-      <button
-        onClick={() => setSidebarOpen(true)}
-        className="fixed top-3 left-3 z-30 md:hidden w-10 h-10 flex items-center justify-center bg-[#1057C1] hover:bg-[#0c3e8c] text-white rounded-lg shadow-lg transition-colors"
-        aria-label="Mở menu"
-      >
-        <Menu className="w-6 h-6" />
-      </button>
-
-      <KidsUnitsSidebar
+    <div className="min-h-screen md:flex md:items-stretch ">
+<KidsUnitsSidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         basePath="/games/kids"
@@ -94,6 +86,7 @@ export default function KidsGameSlugPage() {
 
       <div className="flex-1 md:ml-0 md:min-h-screen">
         <UnitGameScreen
+          onOpenUnitsSidebar={() => setSidebarOpen(true)}
           unit={unit}
           heading={unit.name}
           subheading={unit.bookname}

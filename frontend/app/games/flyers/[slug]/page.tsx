@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Menu } from "lucide-react";
+
 import { UnitGameScreen } from "@/app/components/games/UnitGameScreen";
 import { FlyerUnitsSidebar } from "@/app/components/games/FlyerUnitsSidebar";
 import { gameService } from "@/services/game.service";
@@ -78,16 +78,8 @@ export default function FlyersGameSlugPage() {
   }
 
   return (
-    <div className="min-h-screen md:flex md:items-stretch bg-gradient-to-b from-blue-50 via-blue-50 to-blue-100 bg-fixed">
-      <button
-        onClick={() => setSidebarOpen(true)}
-        className="fixed top-3 left-3 z-30 md:hidden w-10 h-10 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-lg transition-colors"
-        aria-label="Mở menu"
-      >
-        <Menu className="w-6 h-6" />
-      </button>
-
-      <FlyerUnitsSidebar
+    <div className="min-h-screen md:flex md:items-stretch ">
+<FlyerUnitsSidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         basePath="/games/flyers"
@@ -95,6 +87,7 @@ export default function FlyersGameSlugPage() {
 
       <div className="flex-1 md:ml-0 md:min-h-screen">
         <UnitGameScreen
+          onOpenUnitsSidebar={() => setSidebarOpen(true)}
           unit={unit}
           heading={unit.name}
           subheading={unit.bookname}

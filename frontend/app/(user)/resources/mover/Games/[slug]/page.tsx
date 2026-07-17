@@ -6,7 +6,7 @@ import { MoverUnitsSidebar } from "@/app/components/games/MoverUnitsSidebar";
 import { gameService } from "@/services/game.service";
 import type { UnitGameConfig } from "@/types/games";
 import { useParams, useRouter } from "next/navigation";
-import { Menu } from "lucide-react";
+
 
 // Helper: lấy ID từ localStorage (chỉ dùng trong cùng 1 phiên tab)
 function getSavedPlayerId(): string {
@@ -156,15 +156,7 @@ export default function MoverGamePage() {
   return (
     <div className="min-h-screen md:flex md:items-stretch">
       {/* Hamburger button cho mobile */}
-      <button
-        onClick={() => setSidebarOpen(true)}
-        className="fixed top-3 left-3 z-30 md:hidden w-10 h-10 flex items-center justify-center bg-[#1057C1] hover:bg-[#0c3e8c] text-white rounded-lg shadow-lg transition-colors"
-        aria-label="Mở menu"
-      >
-        <Menu className="w-6 h-6" />
-      </button>
-
-      {/* Sidebar */}
+{/* Sidebar */}
       <MoverUnitsSidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -172,6 +164,7 @@ export default function MoverGamePage() {
 
       <div className="flex-1 md:ml-0">
         <UnitGameScreen
+          onOpenUnitsSidebar={() => setSidebarOpen(true)}
           unit={unit}
           heading={unit.name}
           subheading={unit.bookname}
