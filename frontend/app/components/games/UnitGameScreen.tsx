@@ -657,6 +657,32 @@ const processingGamesRef = useRef<Set<GameKey>>(new Set());
 const handleGameComplete = (game: GameKey, score?: number) => {
   if (!enabledGames.includes(game)) return;
 
+  // Submit điểm lên bảng xếp hạng kể cả khi chơi lại (best-score upsert).
+  // Không phụ thuộc studentSession — backend tự verify playerId.
+  const submitPlayerId =
+    studentSession?.playerId ||
+    (playerId && playerId !== "anonymous" && playerId !== "guest"
+      ? playerId
+      : null);
+
+  if (typeof score === "number" && submitPlayerId) {
+    leaderboardService
+      .submit({
+        playerId: submitPlayerId,
+        unitSlug: unit.slug,
+        partId: activePart?.id || "default",
+        gameType: game,
+        score,
+        bookType: unit.bookType,
+      })
+      .then(() => {
+        setLeaderboardRefreshToken((v) => v + 1);
+      })
+      .catch((err) => {
+        console.warn("[leaderboard] submit failed", err);
+      });
+  }
+
   if (processingGamesRef.current.has(game) || progress[game]) {
     return;
   }
@@ -688,31 +714,6 @@ const handleGameComplete = (game: GameKey, score?: number) => {
     });
   }
 
-  // Upsert điểm cao nhất vào leaderboard (chỉ cho học sinh đã xác thực ID)
-  if (
-    typeof score === "number" &&
-    studentSession?.playerId &&
-    playerId &&
-    playerId !== "anonymous"
-  ) {
-    const unitSlug = unit.slug;
-    const partId = activePart?.id || "default";
-    leaderboardService
-      .submit({
-        playerId: studentSession.playerId,
-        unitSlug,
-        partId,
-        gameType: game,
-        score,
-        bookType: unit.bookType,
-      })
-      .then(() => {
-        setLeaderboardRefreshToken((v) => v + 1);
-      })
-      .catch(() => {
-        // ignore
-      });
-  }
   setTimeout(() => {
     processingGamesRef.current.delete(game);
   }, 250);

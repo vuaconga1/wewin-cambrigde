@@ -10,7 +10,14 @@ import { UnitGameConfig } from "@/types/games";
 
 function getSavedPlayerId(): string {
   if (typeof window === "undefined") return "";
-  return localStorage.getItem("flyers_book_player_id") || "";
+  const primary = localStorage.getItem("flyer_book_player_id") || "";
+  if (primary && primary !== "anonymous") return primary;
+  const legacy = localStorage.getItem("flyers_book_player_id") || "";
+  if (legacy && legacy !== "anonymous") {
+    localStorage.setItem("flyer_book_player_id", legacy);
+    return legacy;
+  }
+  return "";
 }
 
 export default function GamePartGamePage() {
@@ -69,13 +76,13 @@ export default function GamePartGamePage() {
 
   const handlePlayerIdSubmit = (id: string) => {
     setPlayerId(id);
-    localStorage.setItem("flyers_book_player_id", id);
+    localStorage.setItem("flyer_book_player_id", id);
     setShowIdModal(false);
   };
 
   const handlePlayerIdSkip = () => {
     setPlayerId("anonymous");
-    localStorage.setItem("flyers_book_player_id", "anonymous");
+    localStorage.setItem("flyer_book_player_id", "anonymous");
     setShowIdModal(false);
   };
 

@@ -12,6 +12,10 @@ const BOOK_PLAYER_STORAGE_KEYS = [
   "starter_book_player_id",
   "mover_book_player_id",
   "flyer_book_player_id",
+  // legacy typos from deep routes
+  "starters_book_player_id",
+  "movers_book_player_id",
+  "flyers_book_player_id",
 ] as const;
 
 function clearBookPlayerLocalStorage() {
