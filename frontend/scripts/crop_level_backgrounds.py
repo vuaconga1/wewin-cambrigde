@@ -1,53 +1,56 @@
-"""Apply consistent crop + rounded alpha mask to remove outdoor scenery."""
-from PIL import Image, ImageDraw
+"""Remove solid black backdrop from level card PNGs (keep artwork intact)."""
+from PIL import Image
+from collections import deque
 import os
 
 LEVELS_DIR = r"E:\Wewin\WeWinGame\Wewin-Education-main\frontend\public\assets\levels"
-
-# Fractions of original 819x1024 that keep the board + characters/icons
-# Tuned from kids frame detection (yellow board ~ x=45..772, y=45..)
-CROP = {
-    # left, top, right, bottom as fractions of width/height
-    "kids": (0.045, 0.022, 0.950, 0.999),
-    "starters": (0.045, 0.015, 0.955, 0.999),
-    "movers": (0.045, 0.010, 0.955, 0.999),
-    "flyers": (0.040, 0.015, 0.955, 0.999),
-}
+THRESHOLD = 28  # treat near-black as backdrop
 
 
-def process(level: str):
+def is_black(pixel: tuple[int, int, int, int]) -> bool:
+    r, g, b, a = pixel
+    return a > 0 and r <= THRESHOLD and g <= THRESHOLD and b <= THRESHOLD
+
+
+def remove_black_background(im: Image.Image) -> Image.Image:
+    im = im.convert("RGBA")
+    w, h = im.size
+    px = im.load()
+    visited = [[False] * w for _ in range(h)]
+    q: deque[tuple[int, int]] = deque()
+
+    def try_push(x: int, y: int) -> None:
+        if 0 <= x < w and 0 <= y < h and not visited[y][x] and is_black(px[x, y]):
+            visited[y][x] = True
+            q.append((x, y))
+
+    for x in range(w):
+        try_push(x, 0)
+        try_push(x, h - 1)
+    for y in range(h):
+        try_push(0, y)
+        try_push(w - 1, y)
+
+    while q:
+        x, y = q.popleft()
+        r, g, b, _ = px[x, y]
+        px[x, y] = (r, g, b, 0)
+        for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+            try_push(nx, ny)
+
+    bbox = im.getbbox()
+    return im.crop(bbox) if bbox else im
+
+
+def process(level: str) -> None:
     bak = os.path.join(LEVELS_DIR, f"{level}.original.png")
     path = os.path.join(LEVELS_DIR, f"{level}.png")
-    im = Image.open(bak if os.path.exists(bak) else path).convert("RGBA")
-    w, h = im.size
-    print(f"{level}: {w}x{h}")
-
-    l, t, r, b = CROP[level]
-    left, top = int(w * l), int(h * t)
-    right, bottom = int(w * r) - 1, int(h * b) - 1
-    print(f"  box=({left}, {top}, {right}, {bottom})")
-
-    mask = Image.new("L", (w, h), 0)
-    draw = ImageDraw.Draw(mask)
-    radius = int(min(right - left, bottom - top) * 0.10)
-    draw.rounded_rectangle([left, top, right, bottom], radius=radius, fill=255)
-
-    # Extra bottom coverage for characters
-    char_y = int(top + (bottom - top) * 0.68)
-    draw.rounded_rectangle(
-        [left + 16, char_y, right - 16, bottom],
-        radius=max(6, radius // 3),
-        fill=255,
-    )
-
-    out = im.copy()
-    out.putalpha(mask)
-    bbox = out.getbbox()
-    if bbox:
-        out = out.crop(bbox)
-    print(f"  final={out.size}")
+    src = bak if os.path.exists(bak) else path
+    im = Image.open(src)
+    print(f"{level}: {im.size} from {os.path.basename(src)}")
+    out = remove_black_background(im)
     out.save(path, optimize=True)
-    print("  saved\n")
+    print(f"  saved {out.size} -> {path}\n")
 
 
 if __name__ == "__main__":

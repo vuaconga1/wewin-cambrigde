@@ -27,7 +27,7 @@ const GameCard: React.FC<GameCardProps> = ({ book }) => {
       className="group relative block aspect-[3/4] transition-all duration-500 ease-out hover:-translate-y-2"
     >
       <img
-        src={`${imageSrc}?v=3`}
+        src={`${imageSrc}?v=5`}
         alt={book.name}
         className="h-full w-full object-contain drop-shadow-[0_16px_36px_rgba(15,23,42,0.28)] transition-transform duration-700 group-hover:scale-[1.03]"
       />

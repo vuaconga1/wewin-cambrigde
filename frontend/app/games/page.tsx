@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import GameCard from "../components/books/GameCard";
+import { LevelBooksCarousel } from "../components/games/LevelBooksCarousel";
 import { Book } from "../../lib/constants/types";
 import { ForestPageShell } from "@/app/components/games/forest-background";
 
@@ -45,23 +46,27 @@ function GamesLibraryContent() {
   const activeBooks = gameBooks.filter((book) => book.status === "active");
 
   return (
-    <div className="min-h-screen bg-transparent py-12 px-4">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-10 md:mb-12">
-          <div className="inline-flex flex-wrap items-center justify-center gap-2 md:gap-3 mb-3 md:mb-4 rounded-2xl border border-white/50 bg-white/75 px-5 py-4 shadow-lg backdrop-blur-md">
-            <span className="text-3xl md:text-5xl">🎮</span>
-            <h1 className="text-2xl md:text-5xl font-bold text-[#0E4BA9] drop-shadow-sm">
+    <div className="min-h-screen bg-transparent px-4 py-8 sm:py-10 md:py-12">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-6 text-center sm:mb-8 md:mb-12">
+          <div className="mb-3 inline-flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-white/50 bg-white/75 px-4 py-3 shadow-lg backdrop-blur-md sm:mb-4 sm:gap-3 sm:px-5 sm:py-4 md:mb-4">
+            <span className="text-2xl sm:text-3xl md:text-5xl">🎮</span>
+            <h1 className="text-xl font-bold text-[#0E4BA9] drop-shadow-sm sm:text-2xl md:text-5xl">
               Thư viện Games WeWIN
             </h1>
-            <span className="text-3xl md:text-5xl">🎯</span>
+            <span className="text-2xl sm:text-3xl md:text-5xl">🎯</span>
           </div>
-          <p className="text-slate-800 text-sm md:text-lg font-medium drop-shadow-sm px-2">
+          <p className="px-2 text-sm font-medium text-slate-800 drop-shadow-sm sm:text-base md:text-lg">
             Chọn cấp độ phù hợp để bắt đầu chơi và học tiếng Anh
           </p>
-          <div className="mt-3 md:mt-4 h-1 w-20 md:w-24 bg-linear-to-r from-blue-400 via-indigo-400 to-purple-400 rounded-full mx-auto" />
+          <div className="mx-auto mt-3 h-1 w-16 rounded-full bg-linear-to-r from-blue-400 via-indigo-400 to-purple-400 sm:mt-4 sm:w-20 md:w-24" />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-7">
+        {/* Mobile + tablet: swipe carousel */}
+        <LevelBooksCarousel books={activeBooks} />
+
+        {/* Desktop lg+: 4-column grid */}
+        <div className="hidden grid-cols-4 gap-7 lg:grid">
           {activeBooks.map((book) => (
             <GameCard key={book.id} book={book} />
           ))}
@@ -80,10 +85,10 @@ const GamesPage: React.FC = () => {
 
   if (!mounted) {
     return (
-      <ForestPageShell>
-        <div className="min-h-screen bg-transparent py-12 px-4">
-          <div className="max-w-7xl mx-auto text-center">
-            <p className="text-gray-800 text-lg font-medium">Đang tải...</p>
+      <ForestPageShell showThemeSwitcher>
+        <div className="min-h-screen bg-transparent px-4 py-12">
+          <div className="mx-auto max-w-7xl text-center">
+            <p className="text-lg font-medium text-gray-800">Đang tải...</p>
           </div>
         </div>
       </ForestPageShell>
@@ -91,7 +96,7 @@ const GamesPage: React.FC = () => {
   }
 
   return (
-    <ForestPageShell>
+    <ForestPageShell showThemeSwitcher>
       <GamesLibraryContent />
     </ForestPageShell>
   );

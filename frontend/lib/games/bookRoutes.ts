@@ -27,7 +27,8 @@ export const BOOK_PLAYER_STORAGE_KEY: Record<string, string> = {
   flyer: "flyer_book_player_id",
 };
 
-export function leaderboardPathForBookType(bookType: string) {
+export function leaderboardPathForBookType(bookType?: string) {
+  if (!bookType) return undefined;
   const route = BOOK_TYPE_TO_ROUTE[bookType] ?? bookType;
   return `/games/${route}/leaderboard`;
 }
