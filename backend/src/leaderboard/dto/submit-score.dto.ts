@@ -1,4 +1,4 @@
-import { IsInt, IsString, MaxLength, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
 export class SubmitScoreDto {
   @IsString()
@@ -20,5 +20,9 @@ export class SubmitScoreDto {
   @IsInt()
   @Min(0)
   score: number;
-}
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  bookType?: string;
+}

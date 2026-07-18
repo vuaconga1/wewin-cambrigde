@@ -2,10 +2,16 @@ export { FantasyForestBackground } from "./FantasyForestBackground";
 export { ForestPageShell } from "./ForestPageShell";
 export { ForestThemeProvider, ForestThemeProviderStandalone, useForestThemeContext, useForestThemeContextOptional } from "./ForestThemeContext";
 export { SeasonGamePanel, SeasonStoryBanner, useGameSeasonTheme } from "./SeasonGamePanel";
+export { SeasonCardDecor } from "./SeasonCardDecor";
 export { SeasonThemeSwitcher } from "./SeasonThemeSwitcher";
 export { useForestTheme } from "./useForestTheme";
 export { getGameSeasonTheme, type GameSeasonTheme, type SeasonGameType } from "./gameSeasonThemes";
 export { getLevelCardPalette, resolveLevelKey, type LevelCardPalette, type LevelKey } from "./levelCardThemes";
+export { getSidebarSeasonStyle, type SidebarSeasonStyle } from "./sidebarSeasonThemes";
+export {
+  getLeaderboardSeasonStyle,
+  type LeaderboardSeasonStyle,
+} from "./leaderboardSeasonThemes";
 export {
   FOREST_THEMES,
   FOREST_SEASONS,

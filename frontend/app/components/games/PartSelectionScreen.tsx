@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { UnitGameConfig, UnitGamePart } from "@/types/games";
 import { DEFAULT_ENABLED_GAMES } from "@/types/games";
 import { GameMobileToolbar } from "@/app/components/games/GameMobileToolbar";
+import { SeasonCardDecor } from "@/app/components/games/forest-background";
 
 type PartSelectionScreenProps = {
   unit: UnitGameConfig;
@@ -170,6 +171,8 @@ export function PartSelectionScreen({
           className="absolute inset-0 h-full w-full object-cover object-center"
         />
 
+        <SeasonCardDecor compact={!isCenter} />
+
         <div className="relative z-10 flex h-full w-full flex-col items-center justify-center px-5 sm:px-8">
           <div
             className={`w-full font-extrabold leading-tight break-words line-clamp-3 ${
@@ -210,7 +213,7 @@ export function PartSelectionScreen({
   };
 
   return (
-    <div className="min-h-screen bg-transparent pb-20">
+    <div className="flex min-h-screen flex-col bg-transparent pb-8">
       <GameMobileToolbar
         onBack={() => router.back()}
         onOpenUnits={onOpenUnitsSidebar}
@@ -219,25 +222,25 @@ export function PartSelectionScreen({
       />
 
       {showBreadcrumb && (
-        <div className="hidden md:flex relative pt-2 pb-2 px-6 min-h-[52px] items-center justify-center">
+        <div className="relative hidden min-h-[52px] items-center justify-center px-6 pt-2 pb-2 md:flex">
           <button
             onClick={() => router.back()}
-            className="absolute left-6 top-2 inline-flex items-center gap-2 px-4 py-2.5 bg-white/80 hover:bg-white text-slate-700 border border-slate-200/60 rounded-xl shadow-sm hover:shadow-md transition-all font-semibold z-20"
+            className="absolute left-6 top-2 z-20 inline-flex items-center gap-2 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-2.5 font-semibold text-slate-700 shadow-sm transition-all hover:bg-white hover:shadow-md"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
             <span>Back</span>
           </button>
 
-          <nav className="inline-flex items-center gap-3 px-5 py-3 bg-white/90 backdrop-blur-sm rounded-xl border border-gray-200/80 shadow-md">
+          <nav className="inline-flex items-center gap-3 rounded-xl border border-gray-200/80 bg-white/90 px-5 py-3 shadow-md backdrop-blur-sm">
             <Link
               href={breadcrumbBackUrl}
-              className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-semibold transition-colors"
+              className="flex items-center gap-2 font-semibold text-blue-600 transition-colors hover:text-blue-700"
             >
               <span className="text-lg">📚</span>
               <span>{breadcrumbBackLabel}</span>
             </Link>
             <span className="text-gray-400">/</span>
-            <span className="flex items-center gap-2 text-blue-900 font-semibold">
+            <span className="flex items-center gap-2 font-semibold text-blue-900">
               <span className="text-lg">📖</span>
               <span>{heading}</span>
             </span>
@@ -245,63 +248,65 @@ export function PartSelectionScreen({
         </div>
       )}
 
-      <div className="text-center mb-4 sm:mb-8 mt-3 md:mt-6 px-3">
-        <h1
-          className="hidden md:block text-3xl sm:text-5xl font-bold mb-3 drop-shadow-lg"
-          style={{ textShadow: "0 12px 25px rgba(0,0,0,0.3)", color: "#0E4BA9" }}
+      <div className="flex flex-1 flex-col justify-center px-3 py-4 sm:px-4 md:px-6 md:py-8">
+        <div className="mb-3 text-center md:mb-6">
+          <h1
+            className="mb-3 hidden text-3xl font-bold drop-shadow-lg sm:text-5xl md:block"
+            style={{ textShadow: "0 12px 25px rgba(0,0,0,0.3)", color: "#0E4BA9" }}
+          >
+            {heading}
+          </h1>
+          <p className="text-base font-medium text-black sm:text-2xl md:text-3xl">
+            Choose topic to play game
+          </p>
+        </div>
+
+        <div
+          className={`relative mx-auto mt-1 w-full max-w-6xl md:mt-4 ${isDesktop ? "h-[460px] sm:h-[540px] md:h-[580px]" : ""}`}
+          style={isDesktop ? undefined : { height: carouselHeight }}
         >
-          {heading}
-        </h1>
-        <p className="text-base sm:text-2xl md:text-3xl text-black font-medium">
-          Choose topic to play game
-        </p>
-      </div>
+          {parts.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={() => moveCard(-1)}
+                className="absolute -left-2 top-1/2 z-40 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-white/90 text-blue-700 shadow-lg backdrop-blur-md transition hover:scale-105 hover:bg-white md:left-0 md:h-12 md:w-12 lg:left-2"
+                aria-label="Qua card trước"
+              >
+                <svg className="h-5 w-5 md:h-6 md:w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 18l-6-6 6-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => moveCard(1)}
+                className="absolute -right-2 top-1/2 z-40 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-white/90 text-blue-700 shadow-lg backdrop-blur-md transition hover:scale-105 hover:bg-white md:right-0 md:h-12 md:w-12 lg:right-2"
+                aria-label="Qua card tiếp theo"
+              >
+                <svg className="h-5 w-5 md:h-6 md:w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 6l6 6-6 6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+            </>
+          )}
 
-      <div
-        className={`relative mx-auto mt-2 md:mt-4 w-full max-w-6xl px-3 sm:px-4 md:px-6 ${isDesktop ? "h-[460px] sm:h-[540px] md:h-[580px]" : ""}`}
-        style={isDesktop ? undefined : { height: carouselHeight }}
-      >
+          <div className="relative h-full w-full overflow-hidden">
+            {stackedCards.map((slot) => renderStackedCard(slot))}
+          </div>
+        </div>
+
         {parts.length > 1 && (
-          <>
-            <button
-              type="button"
-              onClick={() => moveCard(-1)}
-              className="absolute -left-2 md:left-0 lg:left-2 top-1/2 -translate-y-1/2 z-40 flex h-9 w-9 md:h-12 md:w-12 items-center justify-center rounded-full border border-white/40 bg-white/90 text-blue-700 shadow-lg backdrop-blur-md transition hover:bg-white hover:scale-105"
-              aria-label="Qua card trước"
-            >
-              <svg className="h-5 w-5 md:h-6 md:w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 18l-6-6 6-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </button>
-            <button
-              type="button"
-              onClick={() => moveCard(1)}
-              className="absolute -right-2 md:right-0 lg:right-2 top-1/2 -translate-y-1/2 z-40 flex h-9 w-9 md:h-12 md:w-12 items-center justify-center rounded-full border border-white/40 bg-white/90 text-blue-700 shadow-lg backdrop-blur-md transition hover:bg-white hover:scale-105"
-              aria-label="Qua card tiếp theo"
-            >
-              <svg className="h-5 w-5 md:h-6 md:w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 6l6 6-6 6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </button>
-          </>
+          <div className="mt-4 flex items-center justify-center gap-2 px-4 md:mt-6">
+            {parts.map((part, index) => (
+              <button
+                key={part.id}
+                type="button"
+                onClick={() => setActiveIndex(index)}
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  index === activeIndex ? "w-6 bg-blue-600" : "w-2 bg-blue-300 hover:bg-blue-400"
+                }`}
+                aria-label={`Chọn ${part.title}`}
+              />
+            ))}
+          </div>
         )}
-
-        <div className="relative h-full w-full overflow-hidden">
-          {stackedCards.map((slot) => renderStackedCard(slot))}
-        </div>
       </div>
-
-      {parts.length > 1 && (
-        <div className="mt-4 flex items-center justify-center gap-2 px-4">
-          {parts.map((part, index) => (
-            <button
-              key={part.id}
-              type="button"
-              onClick={() => setActiveIndex(index)}
-              className={`h-2 rounded-full transition-all duration-300 ${
-                index === activeIndex ? "w-6 bg-blue-600" : "w-2 bg-blue-300 hover:bg-blue-400"
-              }`}
-              aria-label={`Chọn ${part.title}`}
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 }

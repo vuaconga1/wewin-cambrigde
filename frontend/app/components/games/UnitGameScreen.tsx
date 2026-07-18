@@ -18,6 +18,7 @@ import Notification from "@/app/components/notification";
 import { RightLeaderboardSidebar } from "@/app/components/games/RightLeaderboardSidebar";
 import { GameMobileToolbar } from "@/app/components/games/GameMobileToolbar";
 import { ForestPageShell } from "@/app/components/games/forest-background";
+import { leaderboardPathForBookType } from "@/lib/games/bookRoutes";
 
 import type { GameKey, UnitGameConfig } from "@/types/games";
 import { DEFAULT_ENABLED_GAMES } from "@/types/games";
@@ -703,6 +704,7 @@ const handleGameComplete = (game: GameKey, score?: number) => {
         partId,
         gameType: game,
         score,
+        bookType: unit.bookType,
       })
       .then(() => {
         setLeaderboardRefreshToken((v) => v + 1);
@@ -783,7 +785,10 @@ const goToMenu = () => {
 // Nếu đang ở chế độ chọn part và có nhiều part, hiển thị màn chọn part
 if (mode === "select" && multipleParts) {
   return (
-    <ForestPageShell showThemeSwitcher>
+    <ForestPageShell
+      showThemeSwitcher
+      leaderboardHref={leaderboardPathForBookType(unit.bookType)}
+    >
       <PartSelectionScreen
         unit={unit}
         heading={heading}
@@ -803,8 +808,11 @@ if (mode === "select" && multipleParts) {
 }
 
 return (
-  <ForestPageShell showThemeSwitcher={currentView === "menu"}>
-  <div className="min-h-screen bg-transparent pb-24 md:pb-20">
+  <ForestPageShell
+    showThemeSwitcher={currentView === "menu"}
+    leaderboardHref={leaderboardPathForBookType(unit.bookType)}
+  >
+  <div className="flex min-h-screen flex-col bg-transparent pb-24 md:pb-20">
 
     <GameMobileToolbar
       onBack={() => router.back()}
@@ -895,7 +903,7 @@ return (
     {/* ---------------------------------------------------
           MAIN CONTENT: GameMenu + Progress
     -----------------------------------------------------*/}
-    <div className="w-full">
+    <div className="flex w-full flex-1 flex-col">
       <GameMenu
         key={activePart ? `${unit.slug}-${activePart.id}` : unit.slug}
         title={displayUnitName}

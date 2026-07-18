@@ -7,6 +7,23 @@ export type LeaderboardRow = {
   bestScore: number;
 };
 
+export type MonthlyLeaderboardEntry = {
+  rank: number;
+  studentId: string;
+  playerId: string;
+  name: string;
+  totalScore: number;
+};
+
+export type MonthlyLeaderboardResponse = {
+  bookType: string;
+  year: number;
+  month: number;
+  updatedAt: string;
+  rows: MonthlyLeaderboardEntry[];
+  me: MonthlyLeaderboardEntry | null;
+};
+
 export const leaderboardService = {
   async getTop(payload: {
     unitSlug: string;
@@ -20,12 +37,27 @@ export const leaderboardService = {
     return data;
   },
 
+  async getMonthlyTop(payload: {
+    bookType: string;
+    year: number;
+    month: number;
+    limit?: number;
+    playerId?: string;
+  }) {
+    const { data } = await publicClient.get<MonthlyLeaderboardResponse>(
+      "/leaderboard/monthly-top",
+      { params: payload },
+    );
+    return data;
+  },
+
   async submit(payload: {
     playerId: string;
     unitSlug: string;
     partId: string;
     gameType: string;
     score: number;
+    bookType?: string;
   }) {
     const { data } = await publicClient.post<{ bestScore: number }>(
       "/leaderboard/submit",
@@ -34,4 +66,3 @@ export const leaderboardService = {
     return data;
   },
 };
-

@@ -10,6 +10,7 @@ import { useSpeedScoreTimer } from "@/app/components/games/useSpeedScoreTimer";
 import { shuffleArray } from "@/app/utils/gameWordPool";
 import { SPEED_SCORE_MAX } from "@/app/utils/speedScore";
 import { playWordAudio } from "@/app/utils/playWordAudio";
+import { isPronunciationMatch } from "@/lib/games/pronunciationMatch";
 import { WordVisual } from "@/app/components/games/WordVisual";
 import {
   SeasonGamePanel,
@@ -130,50 +131,9 @@ export function PronunciationGame({
     setIsRecording(false);
   }, []);
 
-  const calculateSimilarity = useCallback((a: string, b: string): number => {
-    if (!a || !b) return 0;
-    if (a === b) return 1;
-
-    const longer = a.length > b.length ? a : b;
-    const shorter = a.length > b.length ? b : a;
-    const longerLength = longer.length;
-
-    // Levenshtein distance
-    const matrix: number[][] = Array.from({ length: shorter.length + 1 }, () =>
-      Array(longer.length + 1).fill(0),
-    );
-
-    for (let i = 0; i <= shorter.length; i++) matrix[i][0] = i;
-    for (let j = 0; j <= longer.length; j++) matrix[0][j] = j;
-
-    for (let i = 1; i <= shorter.length; i++) {
-      for (let j = 1; j <= longer.length; j++) {
-        if (shorter.charAt(i - 1) === longer.charAt(j - 1)) {
-          matrix[i][j] = matrix[i - 1][j - 1];
-        } else {
-          matrix[i][j] = Math.min(
-            matrix[i - 1][j - 1] + 1,
-            matrix[i][j - 1] + 1,
-            matrix[i - 1][j] + 1,
-          );
-        }
-      }
-    }
-
-    const distance = matrix[shorter.length][longer.length];
-    return (longerLength - distance) / longerLength;
-  }, []);
-
   const checkPronunciation = useCallback(
     (transcript: string, correctWord: string) => {
-      const cleanTranscript = transcript.replace(/[^\w\s]/g, "").trim();
-      const cleanCorrect = correctWord.toLowerCase();
-      const similarity = calculateSimilarity(cleanTranscript, cleanCorrect);
-      const isCorrect =
-        cleanTranscript === cleanCorrect ||
-        cleanTranscript.includes(cleanCorrect) ||
-        cleanCorrect.includes(cleanTranscript) ||
-        calculateSimilarity(cleanTranscript, cleanCorrect) >= 0.6;
+      const isCorrect = isPronunciationMatch(transcript, correctWord);
 
       if (isCorrect) {
         triggerFeedback("correct");
@@ -191,7 +151,7 @@ export function PronunciationGame({
         setStatusType("warning");
       }
     },
-    [score, calculateSimilarity, triggerFeedback, speedTimer],
+    [score, triggerFeedback, speedTimer],
   );
 
   const handleListen = useCallback(() => {
@@ -366,13 +326,11 @@ export function PronunciationGame({
             {isRecording ? "⏹️ Dừng ghi" : "🎤 Ghi âm"}
           </button>
           <button
-            onClick={
-              currentIndex >= playWords.length - 1 ? handleReset : handleNext
-            }
+            onClick={handleNext}
             className={`rounded-xl px-6 py-3 font-bold text-white transition w-full sm:w-auto ${ui.primaryBtn}`}
           >
             {currentIndex >= playWords.length - 1
-              ? "🔄 Chơi lại"
+              ? "🏁 Hoàn thành"
               : "➡️ Từ tiếp theo"}
           </button>
         </div>

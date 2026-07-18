@@ -104,7 +104,14 @@ export function BooksOverviewPage() {
   }
 
   return (
-    <ForestPageShell>
+    <ForestPageShell
+      leaderboardMenu={[
+        { label: "Kids Games", href: "/games/kids/leaderboard" },
+        { label: "Starters Games", href: "/games/starters/leaderboard" },
+        { label: "Movers Games", href: "/games/movers/leaderboard" },
+        { label: "Flyers Games", href: "/games/flyers/leaderboard" },
+      ]}
+    >
     <div className="min-h-screen bg-transparent py-12 px-4">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-8 md:mb-10">

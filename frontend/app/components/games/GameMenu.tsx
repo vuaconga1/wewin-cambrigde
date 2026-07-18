@@ -17,6 +17,7 @@ import type {
 import { DEFAULT_ENABLED_GAMES, type WordAudioContext } from "@/types/games";
 import { bookTypeFromPathname } from "@/app/utils/playWordAudio";
 import {
+  SeasonCardDecor,
   useGameSeasonTheme,
 } from "@/app/components/games/forest-background";
 import {
@@ -496,6 +497,8 @@ export function GameMenu({
             />
           )}
 
+          <SeasonCardDecor compact={!isCenter} />
+
           {progressDone && (
             <span className="absolute top-3 right-3 z-20 flex items-center gap-1 px-2 py-0.5 text-[10px] sm:text-xs font-bold text-emerald-700 bg-emerald-100 rounded-full border border-emerald-200 shadow-xs animate-fadeIn">
               <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
@@ -598,18 +601,18 @@ export function GameMenu({
   const carouselHeight = isDesktop ? 580 : cardSize.height + 40;
 
   return (
-    <div className="min-h-screen bg-transparent px-3 sm:px-4 py-6 md:py-10 md:px-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-4 md:mb-6">
+    <div className="flex w-full flex-1 flex-col justify-center px-3 sm:px-4 py-4 md:px-6 md:py-8">
+      <div className="mx-auto w-full max-w-6xl">
+        <div className="mb-3 text-center md:mb-6">
           {description && (
-            <p className="text-lg md:text-3xl text-black font-medium">
+            <p className="text-lg font-medium text-black md:text-3xl">
               {description}
             </p>
           )}
         </div>
 
         <div
-          className={`relative mx-auto mt-2 md:mt-4 w-full max-w-6xl ${isDesktop ? "h-[460px] sm:h-[540px] md:h-[580px]" : ""}`}
+          className={`relative mx-auto mt-1 w-full max-w-6xl md:mt-4 ${isDesktop ? "h-[460px] sm:h-[540px] md:h-[580px]" : ""}`}
           style={isDesktop ? undefined : { height: carouselHeight }}
         >
           {visibleGameCards.length > 1 && (
@@ -645,7 +648,7 @@ export function GameMenu({
         </div>
 
         {visibleGameCards.length > 1 && (
-          <div className="mt-6 flex items-center justify-center gap-2">
+          <div className="mt-4 flex items-center justify-center gap-2 md:mt-6">
             {visibleGameCards.map((card, index) => (
               <button
                 key={card.type}
