@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { Trophy } from "lucide-react";
 
 import { BackgroundMusicControls } from "@/app/components/audio";
+import { isFullscreenGameRoute } from "@/lib/constants/routes";
 
 import { FantasyForestBackground } from "./FantasyForestBackground";
 import { ForestThemeProvider } from "./ForestThemeContext";
@@ -35,6 +37,8 @@ export function ForestPageShell({
   leaderboardHref,
   leaderboardMenu,
 }: ForestPageShellProps) {
+  const pathname = usePathname();
+  const isFullscreen = isFullscreenGameRoute(pathname);
   const forestTheme = useForestTheme();
   const { theme, setTheme, config } = forestTheme;
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -50,14 +54,21 @@ export function ForestPageShell({
 
   const showLeaderboard = Boolean(leaderboardHref || leaderboardMenu?.length);
 
+  // Fullscreen (/games/...): không có navbar global → góc phải trên.
+  // Mobile tránh đè GameMobileToolbar. Trang /games có navbar → top-20.
+  const controlsPosition = isFullscreen
+    ? "top-14 right-2 sm:right-3 md:top-3 md:right-4"
+    : "top-20 right-2 pt-2 sm:right-3 md:right-4 md:pt-3";
+
   return (
     <ForestThemeProvider value={forestTheme}>
       <div className="relative min-h-screen">
         <FantasyForestBackground config={config} reducedMotion={reducedMotion} />
         <div className="relative z-10">{children}</div>
 
-        {/* Mobile + Desktop: 3 nút gọn góc phải trên */}
-        <div className="pointer-events-none absolute right-2 top-[3.75rem] z-20 flex items-center justify-end gap-1.5 sm:right-3 md:right-4 md:top-4">
+        <div
+          className={`pointer-events-none fixed z-[60] flex items-center justify-end gap-1.5 sm:gap-2 ${controlsPosition}`}
+        >
           {showLeaderboard ? (
             <div className="pointer-events-auto relative">
               {leaderboardHref ? (
@@ -81,7 +92,7 @@ export function ForestPageShell({
                     <Trophy className="h-4 w-4 fill-amber-400 sm:h-5 sm:w-5" />
                   </button>
                   {menuOpen && leaderboardMenu ? (
-                    <div className="absolute right-0 top-11 z-40 min-w-[11rem] overflow-hidden rounded-2xl border border-white/60 bg-white/95 py-1 shadow-xl backdrop-blur-md">
+                    <div className="absolute right-0 top-11 z-50 min-w-[11rem] overflow-hidden rounded-2xl border border-white/60 bg-white/95 py-1 shadow-xl backdrop-blur-md">
                       {leaderboardMenu.map((item) => (
                         <Link
                           key={item.href}

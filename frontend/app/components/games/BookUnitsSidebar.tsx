@@ -129,8 +129,11 @@ export function BookUnitsSidebar({
             className={`flex h-full w-full flex-col overflow-hidden border-r ${theme.border} ${theme.asideBg} shadow-xl transition-all duration-300`}
           >
             {collapsed ? (
-              <div
+              <Link
+                href="/games"
                 className={`relative flex h-full items-center justify-center overflow-hidden ${theme.headerFooterBg}`}
+                aria-label="Về trang chọn cấp độ"
+                title="Về trang Games"
               >
                 <span
                   className="pointer-events-none absolute left-1 top-3 text-lg opacity-80"
@@ -147,11 +150,19 @@ export function BookUnitsSidebar({
                 <div className="rotate-90 whitespace-nowrap text-xs font-extrabold tracking-wider text-white">
                   UNIT
                 </div>
-              </div>
+              </Link>
             ) : (
               <>
-                <div
-                  className={`relative flex flex-shrink-0 items-center gap-3 overflow-hidden px-4 py-4 ${theme.headerFooterBg}`}
+                <Link
+                  href="/games"
+                  className={`relative flex flex-shrink-0 items-center gap-3 overflow-hidden px-4 py-4 transition hover:brightness-110 ${theme.headerFooterBg}`}
+                  aria-label="Về trang chọn cấp độ"
+                  title="Về trang Games"
+                  onClick={() => {
+                    if (typeof window !== "undefined" && window.innerWidth < 768) {
+                      onClose?.();
+                    }
+                  }}
                 >
                   <span
                     className="pointer-events-none absolute -right-1 -top-1 text-2xl opacity-90 drop-shadow-sm rotate-[18deg]"
@@ -166,7 +177,8 @@ export function BookUnitsSidebar({
                     {seasonUi.icon}
                   </span>
 
-                  <div className="relative z-10 flex h-9 w-9 items-center justify-center rounded-2xl bg-white shadow-sm ring-2 ring-white/40"
+                  <div
+                    className="relative z-10 flex h-9 w-9 items-center justify-center rounded-2xl bg-white shadow-sm ring-2 ring-white/40"
                     style={{ boxShadow: `0 0 0 2px ${seasonUi.accent}55` }}
                   >
                     <BookOpen className={`h-5 w-5 ${theme.iconColor}`} />
@@ -185,13 +197,19 @@ export function BookUnitsSidebar({
                   </div>
                   {onClose && (
                     <button
-                      onClick={onClose}
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onClose();
+                      }}
                       className="relative z-10 flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-white/20 md:hidden"
+                      aria-label="Đóng danh sách unit"
                     >
                       <X className={`h-5 w-5 ${theme.headerFooterText}`} />
                     </button>
                   )}
-                </div>
+                </Link>
 
                 <nav className="flex-1 space-y-2 overflow-y-auto p-3">
                   {loading && !projects.length ? (
@@ -207,6 +225,7 @@ export function BookUnitsSidebar({
                         <Link
                           key={project.slug}
                           href={href}
+                          replace
                           onClick={() => {
                             if (window.innerWidth < 768) {
                               onClose?.();

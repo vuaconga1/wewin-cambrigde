@@ -115,17 +115,15 @@ export function BooksOverviewPage() {
     <div className="min-h-screen bg-transparent py-12 px-4">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-8 md:mb-10">
-          <div className="inline-flex flex-wrap items-center justify-center gap-2 md:gap-3 mb-3 md:mb-4 rounded-2xl border border-white/50 bg-white/75 px-5 py-4 shadow-lg backdrop-blur-md">
-            <span className="text-3xl md:text-5xl">🎮</span>
-            <h1 className="text-2xl md:text-5xl font-bold text-[#0E4BA9] drop-shadow-sm">
+          <div className="mb-3 md:mb-4">
+            <h1 className="text-2xl font-bold text-[#0E4BA9] drop-shadow-[0_2px_8px_rgba(255,255,255,0.85)] md:text-5xl">
               Thư viện Games WeWIN
             </h1>
-            <span className="text-3xl md:text-5xl">🎯</span>
           </div>
-          <p className="text-slate-800 text-sm md:text-lg font-medium drop-shadow-sm px-2">
+          <p className="px-2 text-sm font-medium text-slate-800 drop-shadow-[0_1px_6px_rgba(255,255,255,0.8)] md:text-lg">
             Chọn cấp độ phù hợp để bắt đầu chơi và học tiếng Anh
           </p>
-          <div className="mt-3 md:mt-4 h-1 w-20 md:w-24 bg-linear-to-r from-blue-400 via-indigo-400 to-purple-400 rounded-full mx-auto" />
+          <div className="mx-auto mt-3 h-1 w-20 rounded-full bg-linear-to-r from-blue-400 via-indigo-400 to-purple-400 md:mt-4 md:w-24" />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-7">

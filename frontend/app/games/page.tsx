@@ -49,14 +49,12 @@ function GamesLibraryContent() {
     <div className="min-h-screen bg-transparent px-4 py-8 sm:py-10 md:py-12">
       <div className="mx-auto max-w-7xl">
         <div className="mb-6 text-center sm:mb-8 md:mb-12">
-          <div className="mb-3 inline-flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-white/50 bg-white/75 px-4 py-3 shadow-lg backdrop-blur-md sm:mb-4 sm:gap-3 sm:px-5 sm:py-4 md:mb-4">
-            <span className="text-2xl sm:text-3xl md:text-5xl">🎮</span>
-            <h1 className="text-xl font-bold text-[#0E4BA9] drop-shadow-sm sm:text-2xl md:text-5xl">
+          <div className="mb-3 sm:mb-4">
+            <h1 className="text-xl font-bold text-[#0E4BA9] drop-shadow-[0_2px_8px_rgba(255,255,255,0.85)] sm:text-2xl md:text-5xl">
               Thư viện Games WeWIN
             </h1>
-            <span className="text-2xl sm:text-3xl md:text-5xl">🎯</span>
           </div>
-          <p className="px-2 text-sm font-medium text-slate-800 drop-shadow-sm sm:text-base md:text-lg">
+          <p className="px-2 text-sm font-medium text-slate-800 drop-shadow-[0_1px_6px_rgba(255,255,255,0.8)] sm:text-base md:text-lg">
             Chọn cấp độ phù hợp để bắt đầu chơi và học tiếng Anh
           </p>
           <div className="mx-auto mt-3 h-1 w-16 rounded-full bg-linear-to-r from-blue-400 via-indigo-400 to-purple-400 sm:mt-4 sm:w-20 md:w-24" />
