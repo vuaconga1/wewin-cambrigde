@@ -10,7 +10,7 @@ import { useSpeedScoreTimer } from "@/app/components/games/useSpeedScoreTimer";
 import { shuffleArray } from "@/app/utils/gameWordPool";
 import { SPEED_SCORE_MAX } from "@/app/utils/speedScore";
 import { playGameSfx } from "@/app/utils/gameSfx";
-import { playWordAudio } from "@/app/utils/playWordAudio";
+import { playWordAudio, stopWordAudio } from "@/app/utils/playWordAudio";
 import { isPronunciationMatch } from "@/lib/games/pronunciationMatch";
 import { WordVisual } from "@/app/components/games/WordVisual";
 import {
@@ -61,6 +61,8 @@ export function PronunciationGame({
     "info",
   );
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const isRecordingRef = useRef(false);
+  const currentWordRef = useRef<WordItem | undefined>(undefined);
   const [isSupported, setIsSupported] = useState(false);
   const { feedback, trigger: triggerFeedback } = useAnswerFeedback();
   const speedTimer = useSpeedScoreTimer();
@@ -91,44 +93,18 @@ export function PronunciationGame({
   }, [currentIndex]);
 
   useEffect(() => {
-    // Kiểm tra hỗ trợ Speech Recognition
-    if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
-      setIsSupported(true);
-      const SpeechRecognition =
-        window.SpeechRecognition || window.webkitSpeechRecognition;
-      const recognition = new SpeechRecognition();
-      recognition.lang = "en-US";
-      recognition.continuous = false;
-      recognition.interimResults = false;
+    currentWordRef.current = currentWord;
+  }, [currentWord]);
 
-      recognition.onstart = () => {
-        setIsRecording(true);
-        setStatus("Hãy đọc to và rõ ràng nhé! 🗣️");
-        setStatusType("info");
-      };
-
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript.toLowerCase().trim();
-        if (currentWord?.text) {
-          checkPronunciation(transcript, currentWord.text);
-        }
-      };
-
-      recognition.onerror = () => {
-        setStatus("Không nghe rõ. Bạn thử lại nhé!");
-        setStatusType("warning");
-        stopRecording();
-      };
-
-      recognition.onend = () => {
-        stopRecording();
-      };
-
-      recognitionRef.current = recognition;
-    }
-  }, [currentWord?.text]);
+  useEffect(() => {
+    setIsSupported(
+      typeof window !== "undefined" &&
+        ("webkitSpeechRecognition" in window || "SpeechRecognition" in window),
+    );
+  }, []);
 
   const stopRecording = useCallback(() => {
+    isRecordingRef.current = false;
     setIsRecording(false);
   }, []);
 
@@ -155,6 +131,69 @@ export function PronunciationGame({
     [score, triggerFeedback, speedTimer],
   );
 
+  const checkPronunciationRef = useRef(checkPronunciation);
+  checkPronunciationRef.current = checkPronunciation;
+
+  const createRecognition = useCallback((): SpeechRecognition | null => {
+    if (typeof window === "undefined") return null;
+    const SpeechRecognitionCtor =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionCtor) return null;
+
+    const recognition = new SpeechRecognitionCtor();
+    recognition.lang = "en-US";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      isRecordingRef.current = true;
+      setIsRecording(true);
+      setStatus("Hãy đọc to và rõ ràng nhé! 🗣️");
+      setStatusType("info");
+    };
+
+    recognition.onresult = (event: { results: { [index: number]: { [index: number]: { transcript: string } } } }) => {
+      const transcript = event.results[0]?.[0]?.transcript?.toLowerCase().trim();
+      const word = currentWordRef.current?.text;
+      if (transcript && word) {
+        checkPronunciationRef.current(transcript, word);
+      }
+    };
+
+    recognition.onerror = (event: { error?: string }) => {
+      if (event.error === "aborted") return;
+      if (event.error === "no-speech") {
+        setStatus("Chưa nghe thấy giọng nói. Bạn thử đọc to hơn nhé!");
+      } else if (event.error === "not-allowed") {
+        setStatus("Hãy cho phép micro trong Cài đặt Safari để ghi âm.");
+      } else {
+        setStatus("Không nghe rõ. Bạn thử lại nhé!");
+      }
+      setStatusType("warning");
+      stopRecording();
+    };
+
+    recognition.onend = () => {
+      recognitionRef.current = null;
+      stopRecording();
+    };
+
+    return recognition;
+  }, [stopRecording]);
+
+  const ensureMicrophoneAccess = useCallback(async (): Promise<boolean> => {
+    if (!navigator.mediaDevices?.getUserMedia) return true;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+      return true;
+    } catch {
+      setStatus("Hãy cho phép micro để ghi âm.");
+      setStatusType("warning");
+      return false;
+    }
+  }, []);
+
   const handleListen = useCallback(() => {
     if (isSpeaking) return;
 
@@ -177,8 +216,8 @@ export function PronunciationGame({
     });
   }, [audioContext, currentWord, isSpeaking]);
 
-  const handleRecord = useCallback(() => {
-    if (!isSupported || !recognitionRef.current) {
+  const handleRecord = useCallback(async () => {
+    if (!isSupported) {
       alert(
         "Trình duyệt của bạn chưa hỗ trợ ghi âm. Hãy dùng Chrome hoặc Edge nhé!",
       );
@@ -190,20 +229,51 @@ export function PronunciationGame({
       return;
     }
 
-    if (isRecording) {
+    if (isRecordingRef.current && recognitionRef.current) {
       recognitionRef.current.stop();
-    } else {
-      speedTimer.start();
-      try {
-        recognitionRef.current.start();
-      } catch {
-        setStatus("Không thể bắt đầu ghi âm. Bạn thử lại nhé!");
-        setStatusType("warning");
-        speedTimer.reset();
-        stopRecording();
-      }
+      return;
     }
-  }, [isSupported, isSpeaking, isRecording, stopRecording, speedTimer]);
+
+    stopWordAudio();
+
+    const hasMic = await ensureMicrophoneAccess();
+    if (!hasMic) return;
+
+    const recognition = createRecognition();
+    if (!recognition) {
+      setStatus("Không thể khởi tạo ghi âm. Bạn thử lại nhé!");
+      setStatusType("warning");
+      return;
+    }
+
+    recognitionRef.current = recognition;
+    speedTimer.start();
+
+    try {
+      recognition.start();
+    } catch {
+      recognitionRef.current = null;
+      setStatus("Không thể bắt đầu ghi âm. Bạn thử lại nhé!");
+      setStatusType("warning");
+      speedTimer.reset();
+      stopRecording();
+    }
+  }, [
+    isSupported,
+    isSpeaking,
+    ensureMicrophoneAccess,
+    createRecognition,
+    stopRecording,
+    speedTimer,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.stop();
+      recognitionRef.current = null;
+      stopWordAudio();
+    };
+  }, []);
 
   const handleNext = useCallback(() => {
     if (currentIndex >= playWords.length - 1) {
@@ -254,7 +324,7 @@ export function PronunciationGame({
         {!isSupported && (
           <div className="mt-4 rounded-lg bg-red-100 p-3 text-center text-sm sm:text-base text-red-700">
             ⚠️ Trình duyệt của bạn không hỗ trợ nhận diện giọng nói. Hãy dùng
-            Chrome hoặc Edge nhé!
+            Safari (iOS 14.5+), Chrome hoặc Edge nhé!
           </div>
         )}
 
