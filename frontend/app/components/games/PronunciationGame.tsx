@@ -39,6 +39,7 @@ declare global {
   interface Window {
     webkitSpeechRecognition: any;
     SpeechRecognition: any;
+    webkitAudioContext?: typeof AudioContext;
   }
 }
 
@@ -66,6 +67,8 @@ export function PronunciationGame({
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const isRecordingRef = useRef(false);
   const currentWordRef = useRef<WordItem | undefined>(undefined);
+  const promptAudioContextRef = useRef<AudioContext | null>(null);
+  const promptSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const [isSupported, setIsSupported] = useState(false);
   const { feedback, trigger: triggerFeedback } = useAnswerFeedback();
   const speedTimer = useSpeedScoreTimer();
@@ -105,6 +108,111 @@ export function PronunciationGame({
         ("webkitSpeechRecognition" in window || "SpeechRecognition" in window),
     );
   }, []);
+
+  const getPromptAudioContext = useCallback(() => {
+    if (typeof window === "undefined") return null;
+    const AudioCtor = window.AudioContext ?? window.webkitAudioContext;
+    if (!AudioCtor) return null;
+    if (!promptAudioContextRef.current) {
+      promptAudioContextRef.current = new AudioCtor();
+    }
+    const ctx = promptAudioContextRef.current;
+    if (ctx.state === "suspended") {
+      void ctx.resume();
+    }
+    return ctx;
+  }, []);
+
+  const stopPromptAudio = useCallback(() => {
+    const source = promptSourceRef.current;
+    if (!source) return;
+    source.onended = null;
+    try {
+      source.stop();
+    } catch {
+      // Source may already be stopped.
+    }
+    promptSourceRef.current = null;
+  }, []);
+
+  const buildPromptAudioUrls = useCallback(
+    (word: Pick<WordItem, "id" | "audio" | "audioUrl">) => {
+      const urls: string[] = [];
+      const seen = new Set<string>();
+
+      const add = (url?: string | null) => {
+        if (!url) return;
+        const normalized = url.startsWith("//") ? `https:${url}` : url;
+        if (seen.has(normalized)) return;
+        seen.add(normalized);
+        urls.push(normalized);
+      };
+
+      add(word.audioUrl ?? undefined);
+      add(word.audio ?? undefined);
+
+      if (audioContext?.bookType && audioContext?.gameSlug) {
+        const base = `/audio/wewin/${audioContext.bookType}/${audioContext.gameSlug}/${word.id.toLowerCase()}`;
+        add(`${base}.mp3`);
+      }
+
+      return urls;
+    },
+    [audioContext],
+  );
+
+  const playPromptAudio = useCallback(
+    async (word: WordItem) => {
+      const urls = buildPromptAudioUrls(word);
+      if (!urls.length) throw new Error("missing-audio");
+
+      const ctx = getPromptAudioContext();
+      if (!ctx) throw new Error("missing-audio-context");
+
+      stopPromptAudio();
+
+      let lastError: unknown = null;
+      for (const url of urls) {
+        try {
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error(`audio-http-${response.status}`);
+          }
+
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+          const source = ctx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(ctx.destination);
+          promptSourceRef.current = source;
+
+          await new Promise<void>((resolve, reject) => {
+            source.onended = () => {
+              if (promptSourceRef.current === source) {
+                promptSourceRef.current = null;
+              }
+              resolve();
+            };
+            try {
+              source.start(0);
+            } catch (error) {
+              if (promptSourceRef.current === source) {
+                promptSourceRef.current = null;
+              }
+              reject(error);
+            }
+          });
+
+          return;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+
+      throw lastError ?? new Error("audio-playback-failed");
+    },
+    [buildPromptAudioUrls, getPromptAudioContext, stopPromptAudio],
+  );
 
   const stopRecording = useCallback(() => {
     isRecordingRef.current = false;
@@ -220,6 +328,7 @@ export function PronunciationGame({
       return;
     }
 
+    stopPromptAudio();
     stopWordAudio();
     beginRecordingUI();
 
@@ -258,31 +367,44 @@ export function PronunciationGame({
     return () => {
       recognitionRef.current?.stop();
       recognitionRef.current = null;
+      stopPromptAudio();
       stopWordAudio();
     };
-  }, []);
+  }, [stopPromptAudio]);
 
   const handleListen = useCallback(() => {
     if (isSpeaking) return;
+    setIsSpeaking(true);
+    setStatus("Lắng nghe thật kỹ nhé! 👂");
+    setStatusType("info");
 
-    playWordAudio(currentWord, audioContext, {
-      onStart: () => {
-        setIsSpeaking(true);
-        setStatus("Lắng nghe thật kỹ nhé! 👂");
-        setStatusType("info");
-      },
-      onEnd: () => {
+    void playPromptAudio(currentWord)
+      .then(() => {
         setIsSpeaking(false);
         setStatus("Nhấn 'Ghi âm' và đọc theo nào!");
         setStatusType("info");
-      },
-      onError: () => {
+      })
+      .catch(() => {
         setIsSpeaking(false);
-        setStatus("Chưa có file âm thanh cho từ này.");
-        setStatusType("warning");
-      },
-    });
-  }, [audioContext, currentWord, isSpeaking]);
+        playWordAudio(currentWord, audioContext, {
+          onStart: () => {
+            setIsSpeaking(true);
+            setStatus("Lắng nghe thật kỹ nhé! 👂");
+            setStatusType("info");
+          },
+          onEnd: () => {
+            setIsSpeaking(false);
+            setStatus("Nhấn 'Ghi âm' và đọc theo nào!");
+            setStatusType("info");
+          },
+          onError: () => {
+            setIsSpeaking(false);
+            setStatus("Chưa có file âm thanh cho từ này.");
+            setStatusType("warning");
+          },
+        });
+      });
+  }, [audioContext, currentWord, isSpeaking, playPromptAudio]);
 
   const handleNext = useCallback(() => {
     if (currentIndex >= playWords.length - 1) {
