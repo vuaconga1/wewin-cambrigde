@@ -1,6 +1,7 @@
+export const GAMES_LIBRARY_PATH = "/games";
+
 const ANCHOR_KEY = "wewin_games_lb_anchor";
-const HREF_KEY = "wewin_games_lb_href";
-const PAIR_KEY = "wewin_games_lb_pair";
+const HREF_KEY = "wewin_games_lb_href";const PAIR_KEY = "wewin_games_lb_pair";
 
 export function markLeaderboardVisit(fromPath: string, leaderboardHref: string) {
   if (typeof window === "undefined") return;

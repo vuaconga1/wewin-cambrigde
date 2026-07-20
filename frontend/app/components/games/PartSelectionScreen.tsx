@@ -5,13 +5,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { UnitGameConfig, UnitGamePart } from "@/types/games";
 import { DEFAULT_ENABLED_GAMES } from "@/types/games";
+import { GameBackButton } from "@/app/components/games/GameBackButton";
 import { GameMobileToolbar } from "@/app/components/games/GameMobileToolbar";
 import { SeasonCardDecor } from "@/app/components/games/forest-background";
-import {
-  getLeaderboardHref,
-  shouldBackToLeaderboard,
-  syncLeaderboardPair,
-} from "@/lib/games/leaderboardNav";
+import { GAMES_LIBRARY_PATH, syncLeaderboardPair } from "@/lib/games/leaderboardNav";
 
 type PartSelectionScreenProps = {
   unit: UnitGameConfig;
@@ -50,15 +47,8 @@ export function PartSelectionScreen({
   }, [pathname]);
 
   const handleBack = useCallback(() => {
-    if (shouldBackToLeaderboard(pathname)) {
-      const href = getLeaderboardHref();
-      if (href) {
-        router.push(href);
-        return;
-      }
-    }
-    router.push(breadcrumbBackUrl);
-  }, [pathname, router, breadcrumbBackUrl]);
+    router.push(GAMES_LIBRARY_PATH);
+  }, [router]);
 
   useEffect(() => {
     const updateCardSize = () => {
@@ -245,17 +235,14 @@ export function PartSelectionScreen({
 
       {showBreadcrumb && (
         <div className="relative hidden min-h-[52px] items-center justify-center px-6 pt-2 pb-2 md:flex">
-          <button
+          <GameBackButton
             onClick={handleBack}
-            className="absolute left-6 top-2 z-20 inline-flex items-center gap-2 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-2.5 font-semibold text-slate-700 shadow-sm transition-all hover:bg-white hover:shadow-md"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-            <span>Back</span>
-          </button>
+            className="absolute left-6 top-2 z-20"
+          />
 
           <nav className="inline-flex items-center gap-3 rounded-xl border border-gray-200/80 bg-white/90 px-5 py-3 shadow-md backdrop-blur-sm">
             <Link
-              href={breadcrumbBackUrl}
+              href={GAMES_LIBRARY_PATH}
               className="font-semibold text-blue-600 transition-colors hover:text-blue-700"
             >
               {breadcrumbBackLabel}

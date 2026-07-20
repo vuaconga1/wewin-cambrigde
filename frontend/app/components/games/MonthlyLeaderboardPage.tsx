@@ -21,9 +21,13 @@ import {
 import {
   BOOK_PLAYER_STORAGE_KEY,
   BOOK_TYPE_LABEL,
-  BOOK_TYPE_TO_ROUTE,
 } from "@/lib/games/bookRoutes";
-import { resolveLeaderboardHome } from "@/lib/games/leaderboardNav";
+import { GameBackButton } from "@/app/components/games/GameBackButton";
+import {
+  clearLeaderboardPair,
+  GAMES_LIBRARY_PATH,
+  resolveLeaderboardHome,
+} from "@/lib/games/leaderboardNav";
 import {
   leaderboardService,
   type MonthlyLeaderboardEntry,
@@ -189,12 +193,11 @@ export function MonthlyLeaderboardPage({
   const [playerId, setPlayerId] = useState("");
 
   const label = bookName || BOOK_TYPE_LABEL[bookType] || bookType;
-  const routeSeg = BOOK_TYPE_TO_ROUTE[bookType] ?? bookType;
-  const backHref = `/games/${routeSeg}`;
-  const homeHref = resolveLeaderboardHome(backHref);
 
   const handleBack = () => {
-    router.push(homeHref);
+    const dest = resolveLeaderboardHome(GAMES_LIBRARY_PATH);
+    clearLeaderboardPair();
+    router.push(dest);
   };
 
   useEffect(() => {
@@ -258,14 +261,10 @@ export function MonthlyLeaderboardPage({
 
           {/* Desktop header */}
           <header className="relative z-10 hidden items-center justify-center px-8 py-4 md:flex">
-            <button
-              type="button"
+            <GameBackButton
               onClick={handleBack}
-              className={`absolute left-8 top-4 inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-semibold shadow-sm backdrop-blur-md transition ${ui.backBtn}`}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Quay lại
-            </button>
+              className={`absolute left-8 top-4 px-3 py-2 text-sm shadow-sm backdrop-blur-md ${ui.backBtn}`}
+            />
             <h1
               className={`text-2xl font-black drop-shadow-sm md:text-3xl ${ui.heading}`}
             >

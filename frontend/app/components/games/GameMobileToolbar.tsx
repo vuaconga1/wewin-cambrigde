@@ -1,6 +1,8 @@
 "use client";
 
-import { BookOpen, ChevronLeft, Trophy } from "lucide-react";
+import { BookOpen, Trophy } from "lucide-react";
+
+import { GameBackButton } from "@/app/components/games/GameBackButton";
 
 type GameMobileToolbarProps = {
   onBack: () => void;
@@ -25,15 +27,10 @@ export function GameMobileToolbar({
   return (
     <header className="md:hidden sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur-md shadow-sm">
       <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 px-3 py-2.5">
-        <button
-          type="button"
+        <GameBackButton
           onClick={onBack}
-          className={`${iconBtn} w-auto min-w-[4.5rem] gap-0.5 border-slate-200/80 bg-white px-2.5 text-slate-700 hover:bg-slate-50`}
-          aria-label="Quay lại"
-        >
-          <ChevronLeft className="h-5 w-5 shrink-0" strokeWidth={2.5} />
-          <span className="text-sm font-semibold">Back</span>
-        </button>
+          className="w-auto min-w-[4.5rem] px-2.5 py-0 shadow-sm"
+        />
 
         <div className="min-w-0 px-1 text-center">
           <p className="truncate text-sm font-bold leading-tight text-[#0E4BA9]">

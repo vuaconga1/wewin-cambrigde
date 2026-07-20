@@ -19,12 +19,9 @@ import Notification from "@/app/components/notification";
 import { RightLeaderboardSidebar } from "@/app/components/games/RightLeaderboardSidebar";
 import { GameMobileToolbar } from "@/app/components/games/GameMobileToolbar";
 import { ForestPageShell } from "@/app/components/games/forest-background";
+import { GameBackButton } from "@/app/components/games/GameBackButton";
 import { leaderboardPathForBookType } from "@/lib/games/bookRoutes";
-import {
-  getLeaderboardHref,
-  shouldBackToLeaderboard,
-  syncLeaderboardPair,
-} from "@/lib/games/leaderboardNav";
+import { GAMES_LIBRARY_PATH, syncLeaderboardPair } from "@/lib/games/leaderboardNav";
 
 import type { GameKey, UnitGameConfig } from "@/types/games";
 import { DEFAULT_ENABLED_GAMES } from "@/types/games";
@@ -786,14 +783,6 @@ const goToMenu = () => {
 };
 
 const handleBack = useCallback(() => {
-  if (shouldBackToLeaderboard(pathname)) {
-    const href = getLeaderboardHref();
-    if (href) {
-      router.push(href);
-      return;
-    }
-  }
-
   if (currentView !== "menu") {
     goToMenu();
     return;
@@ -804,7 +793,7 @@ const handleBack = useCallback(() => {
     return;
   }
 
-  router.push(breadcrumbBackUrl);
+  router.push(GAMES_LIBRARY_PATH);
 }, [
   pathname,
   router,
@@ -872,13 +861,10 @@ return (
     {/* Breadcrumb — desktop only */}
     {showBreadcrumb && (
       <div className="hidden md:flex relative pt-2 pb-2 px-6 min-h-[52px] items-center justify-center gap-4">
-        <button
+        <GameBackButton
           onClick={handleBack}
-          className="absolute left-6 top-2 inline-flex items-center gap-2 px-4 py-2.5 bg-white/80 hover:bg-white text-slate-700 border border-slate-200/60 rounded-xl shadow-sm hover:shadow-md transition-all font-semibold z-20"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-          <span>Back</span>
-        </button>
+          className="absolute left-6 top-2 z-20"
+        />
 
         <nav className="inline-flex items-center gap-3 px-5 py-3
                         bg-white/90 backdrop-blur-sm rounded-xl border border-gray-200/80
@@ -886,7 +872,7 @@ return (
 
           {/* Crumb 1 — về trang sách */}
           <Link
-            href={breadcrumbBackUrl}
+            href={GAMES_LIBRARY_PATH}
             className="text-blue-600 hover:text-blue-700
                        font-semibold transition-colors group text-sm sm:text-base"
           >
