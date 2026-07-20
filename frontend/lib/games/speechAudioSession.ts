@@ -36,19 +36,28 @@ export function prepareAudioSessionForSpeech() {
   stopVoiceSfx();
 }
 
-/** iOS Safari: xin quyền micro trước khi SpeechRecognition.start(). */
-export async function ensureMicPermission(): Promise<"granted" | "denied" | "unsupported"> {
+/** iOS Safari: mở mic và giữ stream sống trong suốt phiên ghi âm. */
+export type MicStreamResult =
+  | { status: "granted"; stream: MediaStream }
+  | { status: "denied" }
+  | { status: "unsupported" };
+
+export async function acquireMicStream(): Promise<MicStreamResult> {
   if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-    return "unsupported";
+    return { status: "unsupported" };
   }
 
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    stream.getTracks().forEach((track) => track.stop());
-    return "granted";
+    return { status: "granted", stream };
   } catch {
-    return "denied";
+    return { status: "denied" };
   }
+}
+
+export function releaseMicStream(stream: MediaStream | null | undefined) {
+  if (!stream) return;
+  stream.getTracks().forEach((track) => track.stop());
 }
 
 export function restoreAudioSessionAfterSpeech() {

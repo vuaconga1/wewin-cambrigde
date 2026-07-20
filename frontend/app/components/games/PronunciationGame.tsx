@@ -13,10 +13,11 @@ import { playGameSfx, resumeGameSfxContext, suspendGameSfxContext } from "@/app/
 import { playWordAudio, stopWordAudio } from "@/app/utils/playWordAudio";
 import { isPronunciationMatch } from "@/lib/games/pronunciationMatch";
 import {
-  ensureMicPermission,
+  acquireMicStream,
   isEmbeddedFrame,
   isIosSafari,
   prepareAudioSessionForSpeech,
+  releaseMicStream,
   restoreAudioSessionAfterSpeech,
   resumeAudioContext,
   suspendAudioContext,
@@ -74,6 +75,7 @@ export function PronunciationGame({
     "info",
   );
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
   const isRecordingRef = useRef(false);
   const currentWordRef = useRef<WordItem | undefined>(undefined);
   const promptAudioContextRef = useRef<AudioContext | null>(null);
@@ -238,6 +240,14 @@ export function PronunciationGame({
     setRecordPhase("idle");
   }, []);
 
+  const finishSpeechSession = useCallback(() => {
+    releaseMicStream(micStreamRef.current);
+    micStreamRef.current = null;
+    restoreAudioSessionAfterSpeech();
+    resumeAudioContext(promptAudioContextRef.current);
+    resumeGameSfxContext();
+  }, []);
+
   const beginRecordingUI = useCallback(() => {
     setIsRecording(true);
     setRecordPhase("starting");
@@ -321,11 +331,10 @@ export function PronunciationGame({
 
     recognition.onerror = (event: { error?: string }) => {
       setMicDebug(`onerror: ${event.error ?? "unknown"}`);
-      restoreAudioSessionAfterSpeech();
-      resumeAudioContext(promptAudioContextRef.current);
-      resumeGameSfxContext();
 
       if (event.error === "aborted") return;
+
+      finishSpeechSession();
       if (event.error === "no-speech") {
         setStatus("Chưa nghe thấy giọng nói. Bạn thử đọc to hơn nhé!");
       } else if (event.error === "not-allowed") {
@@ -349,20 +358,24 @@ export function PronunciationGame({
     recognition.onend = () => {
       setMicDebug((prev) => (prev ? `${prev} → onend` : "onend"));
       recognitionRef.current = null;
-      restoreAudioSessionAfterSpeech();
-      resumeAudioContext(promptAudioContextRef.current);
-      resumeGameSfxContext();
 
       const wasListening = isRecordingRef.current;
+      finishSpeechSession();
+
       if (wasListening) {
         setRecordPhase("processing");
         setStatus("Đang xử lý giọng nói...");
+      } else {
+        setStatus(
+          "Safari hủy ghi âm sớm. Hãy tắt nhạc nền (🔊) rồi bấm Ghi âm lại.",
+        );
+        setStatusType("warning");
       }
       stopRecording();
     };
 
     return recognition;
-  }, [iosSafari, speedTimer, stopRecording]);
+  }, [iosSafari, speedTimer, stopRecording, finishSpeechSession]);
 
   const startRecognition = useCallback(() => {
     const recognition = createRecognition();
@@ -379,9 +392,7 @@ export function PronunciationGame({
       recognition.start();
     } catch (error) {
       recognitionRef.current = null;
-      restoreAudioSessionAfterSpeech();
-      resumeAudioContext(promptAudioContextRef.current);
-      resumeGameSfxContext();
+      finishSpeechSession();
       setMicDebug(`start() threw: ${error instanceof Error ? error.message : "unknown"}`);
       setStatus(
         "Không thể bắt đầu ghi âm. Nếu vừa cho phép micro, hãy bấm Ghi âm lần nữa!",
@@ -390,9 +401,9 @@ export function PronunciationGame({
       speedTimer.reset();
       stopRecording();
     }
-  }, [createRecognition, stopRecording, speedTimer]);
+  }, [createRecognition, stopRecording, speedTimer, finishSpeechSession]);
 
-  const handleRecord = useCallback(() => {
+  const handleRecord = useCallback(async () => {
     if (!isSupported) {
       alert(
         "Trình duyệt của bạn chưa hỗ trợ ghi âm. Hãy dùng Chrome hoặc Edge nhé!",
@@ -418,32 +429,32 @@ export function PronunciationGame({
     stopPromptAudio();
     stopWordAudio();
     prepareAudioSessionForSpeech();
-    suspendAudioContext(promptAudioContextRef.current);
-    suspendGameSfxContext();
+    if (!iosSafari) {
+      suspendAudioContext(promptAudioContextRef.current);
+      suspendGameSfxContext();
+    }
     beginRecordingUI();
     setMicDebug("starting");
 
     if (iosSafari) {
-      void ensureMicPermission().then((result) => {
-        if (result === "denied") {
-          setMicDebug("mic-permission: denied");
-          restoreAudioSessionAfterSpeech();
-          resumeAudioContext(promptAudioContextRef.current);
-          resumeGameSfxContext();
-          setStatus(
-            "Safari chưa cho phép micro. Vào Cài đặt > Safari > Micro và bật cho trang này.",
-          );
-          setStatusType("warning");
-          stopRecording();
-          return;
-        }
+      const mic = await acquireMicStream();
+      if (mic.status === "denied") {
+        setMicDebug("mic-permission: denied");
+        finishSpeechSession();
+        setStatus(
+          "Safari chưa cho phép micro. Vào Cài đặt > Safari > Micro và bật cho trang này.",
+        );
+        setStatusType("warning");
+        stopRecording();
+        return;
+      }
 
-        if (result === "granted") {
-          setMicDebug("mic-permission: granted → starting recognition");
-        }
+      if (mic.status === "granted") {
+        micStreamRef.current = mic.stream;
+        setMicDebug("mic-stream: open → starting recognition");
+      }
 
-        startRecognition();
-      });
+      startRecognition();
       return;
     }
 
@@ -456,12 +467,15 @@ export function PronunciationGame({
     beginRecordingUI,
     startRecognition,
     stopRecording,
+    finishSpeechSession,
   ]);
 
   useEffect(() => {
     return () => {
       recognitionRef.current?.stop();
       recognitionRef.current = null;
+      releaseMicStream(micStreamRef.current);
+      micStreamRef.current = null;
       stopPromptAudio();
       stopWordAudio();
     };
@@ -637,7 +651,7 @@ export function PronunciationGame({
             🔊 Nghe từ
           </button>
           <button
-            onClick={handleRecord}
+            onClick={() => void handleRecord()}
             disabled={
               !isSupported ||
               isSpeaking ||
