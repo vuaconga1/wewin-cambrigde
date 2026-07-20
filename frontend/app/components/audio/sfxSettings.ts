@@ -14,9 +14,11 @@ export const SFX_DEFAULT_SETTINGS: SfxSettings = {
 type SfxListener = () => void;
 const listeners = new Set<SfxListener>();
 
-export function subscribeSfxSettings(listener: SfxListener) {
+export function subscribeSfxSettings(listener: SfxListener): () => void {
   listeners.add(listener);
-  return () => listeners.delete(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
 function notifySfxListeners() {
