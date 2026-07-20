@@ -26,6 +26,18 @@ type ToneOpts = {
 
 let sharedCtx: AudioContext | null = null;
 
+export function suspendGameSfxContext() {
+  if (sharedCtx?.state === "running") {
+    void sharedCtx.suspend();
+  }
+}
+
+export function resumeGameSfxContext() {
+  if (sharedCtx?.state === "suspended") {
+    void sharedCtx.resume();
+  }
+}
+
 function getContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
 

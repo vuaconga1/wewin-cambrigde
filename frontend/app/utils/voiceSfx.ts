@@ -9,6 +9,13 @@ const VOICE_SRC: Record<VoiceSfxType, string> = {
 
 let activeVoice: HTMLAudioElement | null = null;
 
+export function stopVoiceSfx() {
+  if (!activeVoice) return;
+  activeVoice.pause();
+  activeVoice.currentTime = 0;
+  activeVoice = null;
+}
+
 /** Giọng trẻ em / nhóm trẻ — dùng cho đúng & sai thay tiếng beep. */
 export function playVoiceSfx(type: VoiceSfxType) {
   const volume = getSfxVolumeMultiplier();

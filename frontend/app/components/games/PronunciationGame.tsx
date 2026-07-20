@@ -9,9 +9,18 @@ import { useAnswerFeedback } from "@/app/components/games/useAnswerFeedback";
 import { useSpeedScoreTimer } from "@/app/components/games/useSpeedScoreTimer";
 import { shuffleArray } from "@/app/utils/gameWordPool";
 import { SPEED_SCORE_MAX } from "@/app/utils/speedScore";
-import { playGameSfx } from "@/app/utils/gameSfx";
+import { playGameSfx, resumeGameSfxContext, suspendGameSfxContext } from "@/app/utils/gameSfx";
 import { playWordAudio, stopWordAudio } from "@/app/utils/playWordAudio";
 import { isPronunciationMatch } from "@/lib/games/pronunciationMatch";
+import {
+  ensureMicPermission,
+  isEmbeddedFrame,
+  isIosSafari,
+  prepareAudioSessionForSpeech,
+  restoreAudioSessionAfterSpeech,
+  resumeAudioContext,
+  suspendAudioContext,
+} from "@/lib/games/speechAudioSession";
 import { WordVisual } from "@/app/components/games/WordVisual";
 import {
   SeasonGamePanel,
@@ -74,6 +83,15 @@ export function PronunciationGame({
   const speedTimer = useSpeedScoreTimer();
   const [completed, setCompleted] = useState(false);
   const [wrongCount, setWrongCount] = useState(0);
+  const [micDebug, setMicDebug] = useState<string | null>(null);
+  const iosSafari = useMemo(
+    () => (typeof window !== "undefined" ? isIosSafari() : false),
+    [],
+  );
+  const embeddedFrame = useMemo(
+    () => (typeof window !== "undefined" ? isEmbeddedFrame() : false),
+    [],
+  );
 
 
   useEffect(() => {
@@ -221,7 +239,6 @@ export function PronunciationGame({
   }, []);
 
   const beginRecordingUI = useCallback(() => {
-    isRecordingRef.current = true;
     setIsRecording(true);
     setRecordPhase("starting");
     setStatus("Đang bật micro... Hãy đọc to từ trên màn hình! 🗣️");
@@ -262,43 +279,82 @@ export function PronunciationGame({
 
     const recognition = new SpeechRecognitionCtor();
     recognition.lang = "en-US";
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    // iOS Safari: continuous=false thường tự ngắt rất nhanh nếu chưa nghe thấy giọng.
+    recognition.continuous = iosSafari;
+    recognition.interimResults = iosSafari;
 
     recognition.onstart = () => {
       isRecordingRef.current = true;
       setIsRecording(true);
       setRecordPhase("listening");
+      setMicDebug("onstart");
+      speedTimer.start();
       setStatus("Đang nghe... Đọc to và rõ ràng nhé! 🗣️");
       setStatusType("info");
     };
 
-    recognition.onresult = (event: { results: { [index: number]: { [index: number]: { transcript: string } } } }) => {
-      const transcript = event.results[0]?.[0]?.transcript?.toLowerCase().trim();
+    recognition.onresult = (event: {
+      resultIndex: number;
+      results: {
+        length: number;
+        [index: number]: {
+          isFinal: boolean;
+          [altIndex: number]: { transcript: string };
+        };
+      };
+    }) => {
+      let transcript = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const piece = event.results[i]?.[0]?.transcript?.toLowerCase().trim();
+        if (!piece) continue;
+        if (event.results[i].isFinal || !iosSafari) {
+          transcript = piece;
+        }
+      }
+
       const word = currentWordRef.current?.text;
       if (transcript && word) {
+        setMicDebug(`onresult: "${transcript}"`);
         checkPronunciationRef.current(transcript, word);
       }
     };
 
     recognition.onerror = (event: { error?: string }) => {
+      setMicDebug(`onerror: ${event.error ?? "unknown"}`);
+      restoreAudioSessionAfterSpeech();
+      resumeAudioContext(promptAudioContextRef.current);
+      resumeGameSfxContext();
+
       if (event.error === "aborted") return;
       if (event.error === "no-speech") {
         setStatus("Chưa nghe thấy giọng nói. Bạn thử đọc to hơn nhé!");
       } else if (event.error === "not-allowed") {
         setStatus(
-          "Hãy cho phép micro trong Safari. Sau đó bấm Ghi âm lần nữa nhé!",
+          "Safari chưa cho phép micro. Vào Cài đặt > Safari > Micro và bật cho trang này.",
         );
+      } else if (event.error === "service-not-allowed") {
+        setStatus(
+          "Safari không cho phép nhận diện giọng nói trong khung nhúng (iframe). Mở game trực tiếp trên trình duyệt.",
+        );
+      } else if (event.error === "network") {
+        setStatus("Cần kết nối mạng để Safari nhận diện giọng nói.");
       } else {
-        setStatus("Không nghe rõ. Bạn thử lại nhé!");
+        setStatus(`Lỗi micro: ${event.error ?? "không rõ"}. Bạn thử lại nhé!`);
       }
       setStatusType("warning");
+      speedTimer.reset();
       stopRecording();
     };
 
     recognition.onend = () => {
+      setMicDebug((prev) => (prev ? `${prev} → onend` : "onend"));
       recognitionRef.current = null;
-      if (isRecordingRef.current) {
+      restoreAudioSessionAfterSpeech();
+      resumeAudioContext(promptAudioContextRef.current);
+      resumeGameSfxContext();
+
+      const wasListening = isRecordingRef.current;
+      if (wasListening) {
         setRecordPhase("processing");
         setStatus("Đang xử lý giọng nói...");
       }
@@ -306,7 +362,35 @@ export function PronunciationGame({
     };
 
     return recognition;
-  }, [stopRecording]);
+  }, [iosSafari, speedTimer, stopRecording]);
+
+  const startRecognition = useCallback(() => {
+    const recognition = createRecognition();
+    if (!recognition) {
+      setStatus("Không thể khởi tạo ghi âm. Bạn thử lại nhé!");
+      setStatusType("warning");
+      stopRecording();
+      return;
+    }
+
+    recognitionRef.current = recognition;
+
+    try {
+      recognition.start();
+    } catch (error) {
+      recognitionRef.current = null;
+      restoreAudioSessionAfterSpeech();
+      resumeAudioContext(promptAudioContextRef.current);
+      resumeGameSfxContext();
+      setMicDebug(`start() threw: ${error instanceof Error ? error.message : "unknown"}`);
+      setStatus(
+        "Không thể bắt đầu ghi âm. Nếu vừa cho phép micro, hãy bấm Ghi âm lần nữa!",
+      );
+      setStatusType("warning");
+      speedTimer.reset();
+      stopRecording();
+    }
+  }, [createRecognition, stopRecording, speedTimer]);
 
   const handleRecord = useCallback(() => {
     if (!isSupported) {
@@ -321,46 +405,57 @@ export function PronunciationGame({
       return;
     }
 
-    if (isRecordingRef.current && recognitionRef.current) {
+    // Chỉ cho dừng khi mic đã thực sự bật (onstart), tránh dừng ngay lập tức trên Safari.
+    if (recordPhase === "listening" && recognitionRef.current) {
       setRecordPhase("processing");
       setStatus("Đang xử lý giọng nói...");
       recognitionRef.current.stop();
       return;
     }
 
+    if (recordPhase !== "idle") return;
+
     stopPromptAudio();
     stopWordAudio();
+    prepareAudioSessionForSpeech();
+    suspendAudioContext(promptAudioContextRef.current);
+    suspendGameSfxContext();
     beginRecordingUI();
+    setMicDebug("starting");
 
-    const recognition = createRecognition();
-    if (!recognition) {
-      setStatus("Không thể khởi tạo ghi âm. Bạn thử lại nhé!");
-      setStatusType("warning");
-      stopRecording();
+    if (iosSafari) {
+      void ensureMicPermission().then((result) => {
+        if (result === "denied") {
+          setMicDebug("mic-permission: denied");
+          restoreAudioSessionAfterSpeech();
+          resumeAudioContext(promptAudioContextRef.current);
+          resumeGameSfxContext();
+          setStatus(
+            "Safari chưa cho phép micro. Vào Cài đặt > Safari > Micro và bật cho trang này.",
+          );
+          setStatusType("warning");
+          stopRecording();
+          return;
+        }
+
+        if (result === "granted") {
+          setMicDebug("mic-permission: granted → starting recognition");
+        }
+
+        startRecognition();
+      });
       return;
     }
 
-    recognitionRef.current = recognition;
-    speedTimer.start();
-
-    try {
-      recognition.start();
-    } catch {
-      recognitionRef.current = null;
-      setStatus(
-        "Không thể bắt đầu ghi âm. Nếu vừa cho phép micro, hãy bấm Ghi âm lần nữa!",
-      );
-      setStatusType("warning");
-      speedTimer.reset();
-      stopRecording();
-    }
+    startRecognition();
   }, [
     isSupported,
     isSpeaking,
+    recordPhase,
+    iosSafari,
     beginRecordingUI,
-    createRecognition,
+    startRecognition,
     stopRecording,
-    speedTimer,
   ]);
 
   useEffect(() => {
@@ -459,6 +554,13 @@ export function PronunciationGame({
           </div>
         )}
 
+        {embeddedFrame && (
+          <div className="mt-4 rounded-lg bg-amber-100 p-3 text-center text-sm sm:text-base text-amber-900">
+            ⚠️ Game đang chạy trong iframe. Safari iPhone có thể không cho ghi âm
+            — hãy mở link game trực tiếp trên Safari.
+          </div>
+        )}
+
         <div className={`mt-4 rounded-lg p-4 text-sm sm:text-base ${ui.statusInfo}`}>
           <p className="font-semibold">📝 Cách chơi:</p>
           <ol className="mt-2 list-decimal list-inside space-y-1">
@@ -536,20 +638,27 @@ export function PronunciationGame({
           </button>
           <button
             onClick={handleRecord}
-            disabled={!isSupported || isSpeaking || recordPhase === "processing"}
+            disabled={
+              !isSupported ||
+              isSpeaking ||
+              recordPhase === "processing" ||
+              recordPhase === "starting"
+            }
             className={`rounded-xl px-6 py-3 font-bold text-white transition ${
-              recordPhase === "listening" || recordPhase === "starting"
+              recordPhase === "listening"
                 ? "bg-red-600 animate-pulse ring-4 ring-red-300"
-                : isSpeaking || !isSupported || recordPhase === "processing"
+                : isSpeaking || !isSupported || recordPhase !== "idle"
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-orange-500 hover:bg-orange-600 hover:shadow-lg"
             } w-full sm:w-auto`}
           >
-            {recordPhase === "listening" || recordPhase === "starting"
+            {recordPhase === "listening"
               ? "⏹️ Dừng ghi"
-              : recordPhase === "processing"
-                ? "⏳ Đang xử lý..."
-                : "🎤 Ghi âm"}
+              : recordPhase === "starting"
+                ? "🎤 Đang bật micro..."
+                : recordPhase === "processing"
+                  ? "⏳ Đang xử lý..."
+                  : "🎤 Ghi âm"}
           </button>
           <button
             onClick={handleNext}
@@ -572,6 +681,12 @@ export function PronunciationGame({
         >
           {status}
         </div>
+
+        {micDebug ? (
+          <p className="mt-2 text-center font-mono text-xs text-slate-500">
+            Mic debug: {micDebug}
+          </p>
+        ) : null}
 
         <div className={`mt-4 h-2 rounded-full overflow-hidden ${ui.progressTrack}`}>
           <div
