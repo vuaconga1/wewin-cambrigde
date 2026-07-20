@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 
+import { getSfxVolumeMultiplier } from "@/app/components/audio/sfxSettings";
+
 const INTERACTIVE_SELECTOR = [
   "button:not([disabled])",
   "a[href]",
@@ -45,6 +47,9 @@ function isDisabledInteractive(element: Element) {
 }
 
 function playBubbleClick() {
+  const sfxScale = getSfxVolumeMultiplier();
+  if (sfxScale <= 0) return;
+
   const audioContext = getAudioContext();
   if (!audioContext) return;
 
@@ -58,6 +63,8 @@ function playBubbleClick() {
   const filter = audioContext.createBiquadFilter();
   const oscillator = audioContext.createOscillator();
   const overtone = audioContext.createOscillator();
+  const master = audioContext.createGain();
+  master.gain.setValueAtTime(sfxScale, now);
 
   output.gain.setValueAtTime(0.0001, now);
   output.gain.exponentialRampToValueAtTime(300.0, now + 0.004);
@@ -92,7 +99,8 @@ function playBubbleClick() {
   overtone.connect(filter);
   filter.connect(output);
   output.connect(compressor);
-  compressor.connect(audioContext.destination);
+  compressor.connect(master);
+  master.connect(audioContext.destination);
 
   oscillator.start(now);
   overtone.start(now + 0.003);

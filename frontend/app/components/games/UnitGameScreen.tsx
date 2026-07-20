@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -19,6 +20,11 @@ import { RightLeaderboardSidebar } from "@/app/components/games/RightLeaderboard
 import { GameMobileToolbar } from "@/app/components/games/GameMobileToolbar";
 import { ForestPageShell } from "@/app/components/games/forest-background";
 import { leaderboardPathForBookType } from "@/lib/games/bookRoutes";
+import {
+  getLeaderboardHref,
+  shouldBackToLeaderboard,
+  syncLeaderboardPair,
+} from "@/lib/games/leaderboardNav";
 
 import type { GameKey, UnitGameConfig } from "@/types/games";
 import { DEFAULT_ENABLED_GAMES } from "@/types/games";
@@ -779,6 +785,39 @@ const goToMenu = () => {
   }, 400);
 };
 
+const handleBack = useCallback(() => {
+  if (shouldBackToLeaderboard(pathname)) {
+    const href = getLeaderboardHref();
+    if (href) {
+      router.push(href);
+      return;
+    }
+  }
+
+  if (currentView !== "menu") {
+    goToMenu();
+    return;
+  }
+
+  if (multipleParts && getPartFromPath(pathname)) {
+    router.push(`${breadcrumbBackUrl}/${unit.slug}`);
+    return;
+  }
+
+  router.push(breadcrumbBackUrl);
+}, [
+  pathname,
+  router,
+  currentView,
+  multipleParts,
+  breadcrumbBackUrl,
+  unit.slug,
+]);
+
+useEffect(() => {
+  syncLeaderboardPair(pathname);
+}, [pathname]);
+
 /* ---------------------------------------------------
     JSX — UI RENDER
 -----------------------------------------------------*/
@@ -816,7 +855,7 @@ return (
   <div className="flex min-h-screen flex-col bg-transparent pb-24 md:pb-20">
 
     <GameMobileToolbar
-      onBack={() => router.back()}
+      onBack={handleBack}
       onOpenUnits={onOpenUnitsSidebar}
       onToggleLeaderboard={() => setLeaderboardOpen((v) => !v)}
       showLeaderboard={currentView !== "menu"}
@@ -834,7 +873,7 @@ return (
     {showBreadcrumb && (
       <div className="hidden md:flex relative pt-2 pb-2 px-6 min-h-[52px] items-center justify-center gap-4">
         <button
-          onClick={() => router.back()}
+          onClick={handleBack}
           className="absolute left-6 top-2 inline-flex items-center gap-2 px-4 py-2.5 bg-white/80 hover:bg-white text-slate-700 border border-slate-200/60 rounded-xl shadow-sm hover:shadow-md transition-all font-semibold z-20"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
@@ -848,38 +887,32 @@ return (
           {/* Crumb 1 — về trang sách */}
           <Link
             href={breadcrumbBackUrl}
-            className="flex items-center gap-1.5 sm:gap-2 text-blue-600 hover:text-blue-700
-                       font-semibold transition-colors group"
+            className="text-blue-600 hover:text-blue-700
+                       font-semibold transition-colors group text-sm sm:text-base"
           >
-            <span className="text-base sm:text-lg">📚</span>
-            <span className="text-sm sm:text-base">{breadcrumbBackLabel}</span>
+            {breadcrumbBackLabel}
           </Link>
 
           <span className="text-gray-400">/</span>
 
           {currentView === "menu" ? (
-            <span className="flex items-center gap-1.5 sm:gap-2 text-blue-900 font-semibold">
-              <span className="text-base sm:text-lg">📖</span>
-              <span className="text-sm sm:text-base">{unit.name}</span>
+            <span className="text-blue-900 font-semibold text-sm sm:text-base">
+              {unit.name}
             </span>
           ) : (
             <>
-              {/* Crumb 2 — Unit */}
               <Link
                 href={`${breadcrumbBackUrl}/${unit.slug}`}
-                className="flex items-center gap-1.5 sm:gap-2 text-blue-600 hover:text-blue-700
-                           font-semibold transition-colors"
+                className="text-blue-600 hover:text-blue-700
+                           font-semibold transition-colors text-sm sm:text-base"
               >
-                <span className="text-base sm:text-lg">📖</span>
-                <span className="text-sm sm:text-base">{unit.name}</span>
+                {unit.name}
               </Link>
 
               <span className="text-gray-400">/</span>
 
-              {/* Crumb 3 — Game */}
-              <span className="flex items-center gap-1.5 sm:gap-2 text-blue-900 font-semibold">
-                <span className="text-base sm:text-lg">🎮</span>
-                <span className="text-sm sm:text-base">{GAME_TITLES[currentView]}</span>
+              <span className="text-blue-900 font-semibold text-sm sm:text-base">
+                {GAME_TITLES[currentView]}
               </span>
             </>
           )}

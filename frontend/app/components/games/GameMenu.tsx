@@ -138,14 +138,20 @@ export function GameMenu({
   useEffect(() => {
     const updateCardSize = () => {
       const w = window.innerWidth;
+      const h = window.innerHeight;
       if (w >= 768) {
-        setCardSize({ width: 408, height: 504 });
+        const height = Math.min(Math.floor(h * 0.55), 504);
+        const width = Math.min(408, Math.round(height * 0.81));
+        setCardSize({ width, height: Math.round(width / 0.81) });
       } else if (w < 400) {
-        setCardSize({ width: 220, height: 280 });
+        const width = Math.min(240, Math.floor(w * 0.66));
+        setCardSize({ width, height: Math.round(width * 1.27) });
       } else if (w < 640) {
-        setCardSize({ width: 260, height: 330 });
+        const width = Math.min(280, Math.floor(w * 0.66));
+        setCardSize({ width, height: Math.round(width * 1.27) });
       } else {
-        setCardSize({ width: 320, height: 400 });
+        const width = Math.min(320, Math.floor(w * 0.5));
+        setCardSize({ width, height: Math.round(width * 1.25) });
       }
     };
 
@@ -421,8 +427,7 @@ export function GameMenu({
       const progressDone = progress[slot.card.progressKey];
 
       const isSide = slot.position === "left" || slot.position === "right";
-      const isDesktop = cardSize.width >= 408;
-      const hideOnMobile = isSide && !isDesktop;
+      const isDesktop = cardSize.width >= 360;
 
       const positionStyles =
         slot.position === "left"
@@ -430,32 +435,28 @@ export function GameMenu({
               left: "50%",
               top: "50%",
               transform: isDesktop
-                ? "translate(-122%, -50%) scale(0.82) rotate(-6deg)"
-                : "translate(-118%, -50%) scale(0.78) rotate(-6deg)",
+                ? "translate(-112%, -50%) scale(0.84) rotate(-5deg)"
+                : "translate(-102%, -50%) scale(0.86) rotate(-4deg)",
               zIndex: 10,
-              opacity: 0.72,
+              opacity: 0.78,
             }
           : slot.position === "right"
             ? {
                 left: "50%",
                 top: "50%",
                 transform: isDesktop
-                  ? "translate(22%, -50%) scale(0.82) rotate(6deg)"
-                  : "translate(18%, -50%) scale(0.78) rotate(6deg)",
+                  ? "translate(12%, -50%) scale(0.84) rotate(5deg)"
+                  : "translate(2%, -50%) scale(0.86) rotate(4deg)",
                 zIndex: 10,
-                opacity: 0.72,
+                opacity: 0.78,
               }
             : {
                 left: "50%",
                 top: "50%",
-                transform: isDesktop
-                  ? "translate(-50%, -50%) scale(1.01)"
-                  : "translate(-50%, -50%) scale(1)",
+                transform: "translate(-50%, -50%) scale(1)",
                 zIndex: 30,
                 opacity: 1,
               };
-
-      if (hideOnMobile) return null;
 
       const hasImageBg =
         slot.card.type === "scramble" ||
@@ -597,8 +598,8 @@ export function GameMenu({
     );
   }
 
-  const isDesktop = cardSize.width >= 408;
-  const carouselHeight = isDesktop ? 580 : cardSize.height + 40;
+  const isDesktop = cardSize.width >= 360;
+  const carouselHeight = cardSize.height + 48;
 
   return (
     <div className="flex w-full flex-1 flex-col justify-center px-3 sm:px-4 py-4 md:px-6 md:py-8">
@@ -612,8 +613,8 @@ export function GameMenu({
         </div>
 
         <div
-          className={`relative mx-auto mt-1 w-full max-w-6xl md:mt-4 ${isDesktop ? "h-[460px] sm:h-[540px] md:h-[580px]" : ""}`}
-          style={isDesktop ? undefined : { height: carouselHeight }}
+          className="relative mx-auto mt-1 w-full max-w-6xl md:mt-4"
+          style={{ height: carouselHeight }}
         >
           {visibleGameCards.length > 1 && (
             <>
@@ -636,7 +637,7 @@ export function GameMenu({
             </>
           )}
 
-          <div className="relative h-full w-full overflow-hidden">
+          <div className="relative h-full w-full overflow-visible">
             {stackedCards.length > 0 ? (
               stackedCards.map((slot) => renderStackedCard(slot))
             ) : (

@@ -24,12 +24,16 @@ const GameCard: React.FC<GameCardProps> = ({ book }) => {
     <Link
       href={book.gameUrl || "#"}
       aria-label={book.name}
-      className="group relative block aspect-[3/4] transition-all duration-500 ease-out hover:-translate-y-2"
+      className="group relative mx-auto block w-full max-w-[420px] transition-all duration-500 ease-out hover:-translate-y-2 xl:max-w-[480px] 2xl:max-w-none"
     >
       <img
-        src={`${imageSrc}?v=5`}
+        src={`${imageSrc}?v=9`}
         alt={book.name}
-        className="h-full w-full object-contain drop-shadow-[0_16px_36px_rgba(15,23,42,0.28)] transition-transform duration-700 group-hover:scale-[1.03]"
+        className="h-auto w-full object-contain transition-transform duration-700 group-hover:scale-[1.03]"
+        style={{
+          filter:
+            "drop-shadow(0 0 1px rgba(255,255,255,0.95)) drop-shadow(0 0 3px rgba(255,255,255,0.9)) drop-shadow(0 0 6px rgba(255,255,255,0.75)) drop-shadow(0 14px 28px rgba(15,23,42,0.28))",
+        }}
       />
     </Link>
   );

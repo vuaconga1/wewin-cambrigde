@@ -9,6 +9,7 @@ import { useAnswerFeedback } from "@/app/components/games/useAnswerFeedback";
 import { useSpeedScoreTimer } from "@/app/components/games/useSpeedScoreTimer";
 import { shuffleArray } from "@/app/utils/gameWordPool";
 import { SPEED_SCORE_MAX } from "@/app/utils/speedScore";
+import { playGameSfx } from "@/app/utils/gameSfx";
 import { playWordAudio } from "@/app/utils/playWordAudio";
 import { isPronunciationMatch } from "@/lib/games/pronunciationMatch";
 import { WordVisual } from "@/app/components/games/WordVisual";
@@ -216,6 +217,7 @@ export function PronunciationGame({
       }
       return;
     }
+    playGameSfx("levelComplete");
     setCurrentIndex((prev) => prev + 1);
     setStatus("Nhấn 'Nghe từ' để tiếp tục học từ mới!");
     setStatusType("info");

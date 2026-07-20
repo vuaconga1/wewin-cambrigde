@@ -23,6 +23,7 @@ import {
   BOOK_TYPE_LABEL,
   BOOK_TYPE_TO_ROUTE,
 } from "@/lib/games/bookRoutes";
+import { resolveLeaderboardHome } from "@/lib/games/leaderboardNav";
 import {
   leaderboardService,
   type MonthlyLeaderboardEntry,
@@ -190,6 +191,11 @@ export function MonthlyLeaderboardPage({
   const label = bookName || BOOK_TYPE_LABEL[bookType] || bookType;
   const routeSeg = BOOK_TYPE_TO_ROUTE[bookType] ?? bookType;
   const backHref = `/games/${routeSeg}`;
+  const homeHref = resolveLeaderboardHome(backHref);
+
+  const handleBack = () => {
+    router.push(homeHref);
+  };
 
   useEffect(() => {
     const key = BOOK_PLAYER_STORAGE_KEY[bookType];
@@ -244,7 +250,7 @@ export function MonthlyLeaderboardPage({
 
         <div className="relative flex min-h-screen flex-1 flex-col pb-28">
           <GameMobileToolbar
-            onBack={() => router.push(backHref)}
+            onBack={handleBack}
             onOpenUnits={() => setSidebarOpen(true)}
             title="Bảng xếp hạng"
             subtitle={label}
@@ -252,13 +258,14 @@ export function MonthlyLeaderboardPage({
 
           {/* Desktop header */}
           <header className="relative z-10 hidden items-center justify-center px-8 py-4 md:flex">
-            <Link
-              href={backHref}
+            <button
+              type="button"
+              onClick={handleBack}
               className={`absolute left-8 top-4 inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-semibold shadow-sm backdrop-blur-md transition ${ui.backBtn}`}
             >
               <ChevronLeft className="h-4 w-4" />
               Quay lại
-            </Link>
+            </button>
             <h1
               className={`text-2xl font-black drop-shadow-sm md:text-3xl ${ui.heading}`}
             >

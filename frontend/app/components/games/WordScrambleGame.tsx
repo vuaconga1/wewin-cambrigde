@@ -11,6 +11,7 @@ import { useSpeedScoreTimer } from "@/app/components/games/useSpeedScoreTimer";
 import { WordVisual } from "@/app/components/games/WordVisual";
 import { shuffleArray } from "@/app/utils/gameWordPool";
 import { SPEED_SCORE_MAX } from "@/app/utils/speedScore";
+import { playGameSfx } from "@/app/utils/gameSfx";
 import {
   SeasonGamePanel,
   useGameSeasonTheme,
@@ -103,6 +104,7 @@ export function WordScrambleGame({
           setCompleted(true);
           onComplete?.(nextScore);
         } else {
+          playGameSfx("levelComplete");
           setCurrentIndex((prev) => prev + 1);
           setUserInput("");
           setStatus("Sắp xếp các chữ cái để tạo thành từ đúng!");

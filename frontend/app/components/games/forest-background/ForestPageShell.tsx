@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { Trophy } from "lucide-react";
 
-import { BackgroundMusicControls } from "@/app/components/audio";
+import { AudioControls } from "@/app/components/audio";
+import { markLeaderboardVisit } from "@/lib/games/leaderboardNav";
 import { isFullscreenGameRoute } from "@/lib/constants/routes";
 
 import { FantasyForestBackground } from "./FantasyForestBackground";
@@ -74,6 +75,7 @@ export function ForestPageShell({
               {leaderboardHref ? (
                 <Link
                   href={leaderboardHref}
+                  onClick={() => markLeaderboardVisit(pathname, leaderboardHref)}
                   aria-label="Bảng xếp hạng tháng"
                   title="Bảng xếp hạng tháng"
                   className={trophyBtnClass}
@@ -97,7 +99,10 @@ export function ForestPageShell({
                         <Link
                           key={item.href}
                           href={item.href}
-                          onClick={() => setMenuOpen(false)}
+                          onClick={() => {
+                            setMenuOpen(false);
+                            markLeaderboardVisit(pathname, item.href);
+                          }}
                           className="block px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-blue-50 hover:text-[#0E4BA9]"
                         >
                           {item.label}
@@ -111,7 +116,7 @@ export function ForestPageShell({
           ) : null}
 
           <div className="pointer-events-auto">
-            <BackgroundMusicControls compact />
+            <AudioControls compact />
           </div>
 
           {showThemeSwitcher ? (

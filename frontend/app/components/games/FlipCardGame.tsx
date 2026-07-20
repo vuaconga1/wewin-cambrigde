@@ -5,6 +5,7 @@ import type { FlipCardGameConfig } from "@/types/games";
 import { playWordAudio } from "@/app/utils/playWordAudio";
 import { WordVisual } from "@/app/components/games/WordVisual";
 import { shuffleArray } from "@/app/utils/gameWordPool";
+import { playGameSfx } from "@/app/utils/gameSfx";
 import {
   SeasonGamePanel,
   useGameSeasonTheme,
@@ -34,6 +35,10 @@ export function FlipCardGame({
   }, [words]);
 
   const hasCalledOnComplete = useRef(false);
+
+  useEffect(() => {
+    if (completed) playGameSfx("celebration");
+  }, [completed]);
 
   useEffect(() => {
     if (completed && onComplete && !hasCalledOnComplete.current) {

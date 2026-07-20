@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { playFeedbackSound } from "@/app/utils/playFeedbackSound";
+import { playGameSfx } from "@/app/utils/gameSfx";
 
 export type AnswerFeedbackType = "correct" | "wrong";
 
@@ -74,7 +74,7 @@ export function useAnswerFeedback(durationMs = DEFAULT_DURATION_MS) {
         emoji: line.emoji,
         id: idRef.current,
       });
-      playFeedbackSound(next);
+      playGameSfx(next === "correct" ? "celebration" : "wrong");
       timerRef.current = setTimeout(() => {
         setFeedback(null);
         timerRef.current = null;

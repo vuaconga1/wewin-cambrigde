@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
 import {
   useGameSeasonTheme,
   type SeasonGameType,
 } from "@/app/components/games/forest-background";
+import { playGameSfx } from "@/app/utils/gameSfx";
 
 type GameSummaryModalProps = {
   open: boolean;
@@ -27,6 +29,13 @@ export function GameSummaryModal({
   onChooseOtherGame,
 }: GameSummaryModalProps) {
   const { ui } = useGameSeasonTheme(game);
+
+  useEffect(() => {
+    if (!open) return;
+    playGameSfx("popupOpen");
+    const fanfare = window.setTimeout(() => playGameSfx("gameComplete"), 120);
+    return () => window.clearTimeout(fanfare);
+  }, [open]);
 
   if (!open) return null;
 

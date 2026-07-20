@@ -46,28 +46,30 @@ function GamesLibraryContent() {
   const activeBooks = gameBooks.filter((book) => book.status === "active");
 
   return (
-    <div className="min-h-screen bg-transparent px-4 py-8 sm:py-10 md:py-12">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-6 text-center sm:mb-8 md:mb-12">
-          <div className="mb-3 sm:mb-4">
-            <h1 className="text-xl font-bold text-[#0E4BA9] drop-shadow-[0_2px_8px_rgba(255,255,255,0.85)] sm:text-2xl md:text-5xl">
-              Thư viện Games WeWIN
-            </h1>
-          </div>
-          <p className="px-2 text-sm font-medium text-slate-800 drop-shadow-[0_1px_6px_rgba(255,255,255,0.8)] sm:text-base md:text-lg">
+    <div className="flex min-h-[calc(100vh-5rem)] flex-col bg-transparent px-3 pb-6 pt-5 sm:px-5 sm:pt-6 lg:px-8 lg:pb-8 lg:pt-7">
+      <div className="mx-auto flex w-full max-w-[1760px] flex-1 flex-col">
+        <div className="mb-4 shrink-0 text-center sm:mb-5 lg:mb-6">
+          <h1 className="text-xl font-bold text-[#0E4BA9] drop-shadow-[0_2px_8px_rgba(255,255,255,0.85)] sm:text-3xl lg:text-4xl xl:text-5xl">
+            Thư viện Games WeWIN
+          </h1>
+          <p className="mt-1.5 px-2 text-sm font-medium text-slate-800 drop-shadow-[0_1px_6px_rgba(255,255,255,0.8)] sm:text-base lg:text-lg">
             Chọn cấp độ phù hợp để bắt đầu chơi và học tiếng Anh
           </p>
-          <div className="mx-auto mt-3 h-1 w-16 rounded-full bg-linear-to-r from-blue-400 via-indigo-400 to-purple-400 sm:mt-4 sm:w-20 md:w-24" />
+          <div className="mx-auto mt-2.5 h-1 w-16 rounded-full bg-linear-to-r from-blue-400 via-indigo-400 to-purple-400 sm:mt-3 sm:w-24" />
         </div>
 
-        {/* Mobile + tablet: swipe carousel */}
-        <LevelBooksCarousel books={activeBooks} />
+        <div className="flex flex-1 flex-col justify-center">
+          {/* Mobile + tablet: 1 main + 2 peeks */}
+          <div className="lg:hidden">
+            <LevelBooksCarousel books={activeBooks} />
+          </div>
 
-        {/* Desktop lg+: 4-column grid */}
-        <div className="hidden grid-cols-4 gap-7 lg:grid">
-          {activeBooks.map((book) => (
-            <GameCard key={book.id} book={book} />
-          ))}
+          {/* Desktop / Windows: 4-column grid như cũ */}
+          <div className="hidden w-full grid-cols-4 items-center gap-2 lg:grid xl:gap-4 2xl:gap-5">
+            {activeBooks.map((book) => (
+              <GameCard key={book.id} book={book} />
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -84,10 +86,8 @@ const GamesPage: React.FC = () => {
   if (!mounted) {
     return (
       <ForestPageShell showThemeSwitcher>
-        <div className="min-h-screen bg-transparent px-4 py-12">
-          <div className="mx-auto max-w-7xl text-center">
-            <p className="text-lg font-medium text-gray-800">Đang tải...</p>
-          </div>
+        <div className="flex min-h-[calc(100vh-5rem)] items-center justify-center bg-transparent px-4">
+          <p className="text-lg font-medium text-gray-800">Đang tải...</p>
         </div>
       </ForestPageShell>
     );

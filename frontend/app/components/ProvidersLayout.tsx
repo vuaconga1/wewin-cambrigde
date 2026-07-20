@@ -5,15 +5,15 @@ import Navbar from "./layouts/header";
 import Sidebar from "./layouts/sidebar";
 import Footer from "./layouts/footer";
 import ClickSound from "./layouts/clickSound";
+import {
+  BackgroundMusicProvider,
+  GlobalAudioControls,
+} from "@/app/components/audio";
 import { useAuthStore } from "@/stores/auth.store";
 import { PERMISSIONS } from "@/lib/constants/permission";
 import { isFullscreenGameRoute } from "@/lib/constants/routes";
 
-export default function ProvidersLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function AppChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isGamePage = isFullscreenGameRoute(pathname);
 
@@ -25,19 +25,14 @@ export default function ProvidersLayout({
 
   if (isGamePage) {
     return (
-      <>
-        <ClickSound />
-        <main className="min-w-0 flex-1 overflow-x-hidden max-w-full">
-          {children}
-        </main>
-      </>
+      <main className="min-w-0 flex-1 overflow-x-hidden max-w-full">
+        {children}
+      </main>
     );
   }
 
   return (
     <>
-      <ClickSound />
-
       <Navbar />
 
       <div className="flex min-h-[calc(100vh-80px)] flex-1 w-full flex-col md:flex-row overflow-hidden pt-20">
@@ -54,5 +49,19 @@ export default function ProvidersLayout({
 
       <Footer />
     </>
+  );
+}
+
+export default function ProvidersLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <BackgroundMusicProvider>
+      <ClickSound />
+      <GlobalAudioControls />
+      <AppChrome>{children}</AppChrome>
+    </BackgroundMusicProvider>
   );
 }

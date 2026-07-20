@@ -10,7 +10,8 @@ import { useAnswerFeedback } from "@/app/components/games/useAnswerFeedback";
 import { useSpeedScoreTimer } from "@/app/components/games/useSpeedScoreTimer";
 import { WordVisual } from "@/app/components/games/WordVisual";
 import { buildOrderingRounds, shuffleArray } from "@/app/utils/gameWordPool";
-import { SPEED_SCORE_MAX } from "@/app/utils/speedScore";
+import { SPEED_SCORE_MAX, ORDERING_SCORE_GRACE_MS } from "@/app/utils/speedScore";
+import { playGameSfx } from "@/app/utils/gameSfx";
 import {
   SeasonGamePanel,
   useGameSeasonTheme,
@@ -58,7 +59,7 @@ export function WordOrderingGame({
     "info",
   );
   const { feedback, trigger: triggerFeedback } = useAnswerFeedback();
-  const speedTimer = useSpeedScoreTimer();
+  const speedTimer = useSpeedScoreTimer({ graceMs: ORDERING_SCORE_GRACE_MS });
 
   const totalRounds = Math.max(rounds.length, 1);
   const currentRound = rounds[currentIndex] ?? [];
@@ -133,6 +134,7 @@ export function WordOrderingGame({
           setCompleted(true);
           onComplete?.(nextScore);
         } else {
+          playGameSfx("levelComplete");
           setCurrentIndex((prev) => prev + 1);
         }
       }, 1200);

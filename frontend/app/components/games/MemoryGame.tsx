@@ -6,9 +6,11 @@ import { AnswerFeedback } from "@/app/components/games/AnswerFeedback";
 import { GameSummaryModal } from "@/app/components/games/GameSummaryModal";
 import { SpeedScoreBar } from "@/app/components/games/SpeedScoreBar";
 import { useAnswerFeedback } from "@/app/components/games/useAnswerFeedback";
-import { useSpeedScoreTimer } from "@/app/components/games/useSpeedScoreTimer";
 import { pickMemoryWords, shuffleArray } from "@/app/utils/gameWordPool";
-import { SPEED_SCORE_MAX } from "@/app/utils/speedScore";
+import {
+  MEMORY_PAIR_SCORE,
+  memoryPairPoints,
+} from "@/app/utils/speedScore";
 import { playWordAudio } from "@/app/utils/playWordAudio";
 import { WordVisual } from "@/app/components/games/WordVisual";
 import {
@@ -52,9 +54,8 @@ export function MemoryGame({
   const [completed, setCompleted] = useState(false);
   const [wrongCount, setWrongCount] = useState(0);
   const [sessionWords, setSessionWords] = useState<WordItem[]>([]);
+  const [flipCounts, setFlipCounts] = useState<Record<string, number>>({});
   const { feedback, trigger: triggerFeedback } = useAnswerFeedback();
-  const speedTimer = useSpeedScoreTimer();
-
 
   // Tạo bộ thẻ từ danh sách từ (tối đa 8 cặp, random mỗi lần chơi)
   const initializeCards = useCallback(() => {
@@ -97,6 +98,7 @@ export function MemoryGame({
     setMatchedPairs(0);
     setScore(0);
     setMoves(0);
+    setFlipCounts({});
     setStatus("Lật 2 thẻ để tìm cặp từ khớp!");
     setStatusType("info");
     setCompleted(false);
@@ -111,16 +113,17 @@ export function MemoryGame({
       if (!card || card.isFlipped || card.isMatched) return;
 
       const newFlipped = [...flippedCards, cardId];
+      const nextFlipCounts = {
+        ...flipCounts,
+        [cardId]: (flipCounts[cardId] || 0) + 1,
+      };
+      setFlipCounts(nextFlipCounts);
 
       // Cập nhật trạng thái lật
       setCards((prev) =>
         prev.map((c) => (c.id === cardId ? { ...c, isFlipped: true } : c)),
       );
       setFlippedCards(newFlipped);
-
-      if (newFlipped.length === 1) {
-        speedTimer.start();
-      }
 
       if (card.id.startsWith("word-")) {
         const word = sessionWords.find((w) => w.id === card.wordId);
@@ -142,7 +145,10 @@ export function MemoryGame({
 
         if (firstCard && secondCard && firstCard.wordId === secondCard.wordId) {
           triggerFeedback("correct");
-          const pointsEarned = speedTimer.claimScore();
+          const pointsEarned = memoryPairPoints(
+            nextFlipCounts[firstId] || 0,
+            nextFlipCounts[secondId] || 0,
+          );
 
           setTimeout(() => {
             setCards((prev) =>
@@ -151,39 +157,31 @@ export function MemoryGame({
               ),
             );
 
-            setMatchedPairs((prev) => {
-              const newCount = prev + 1;
+            // Không gọi setState lồng nhau trong updater — React Strict Mode
+            // chạy updater 2 lần và sẽ cộng điểm đôi (100 → 200).
+            const newCount = matchedPairs + 1;
+            const newScore = score + pointsEarned;
+            setMatchedPairs(newCount);
+            setScore(newScore);
+            setStatus(
+              `🎉 Tuyệt vời! +${pointsEarned} điểm (Tổng: ${newScore} điểm)`,
+            );
+            setStatusType("correct");
 
-              setScore((s) => {
-                const newScore = s + pointsEarned;
-
+            if (newCount === pairTotal) {
+              setTimeout(() => {
                 setStatus(
-                  `🎉 Tuyệt vời! +${pointsEarned} điểm (Tổng: ${newScore} điểm)`,
+                  `🌟 Xuất sắc! Bạn đã hoàn thành tất cả các cặp! Tổng điểm: ${newScore} điểm`,
                 );
-                setStatusType("correct");
-
-                if (newCount === pairTotal) {
-                  setTimeout(() => {
-                    setStatus(
-                      `🌟 Xuất sắc! Bạn đã hoàn thành tất cả các cặp! Tổng điểm: ${newScore} điểm`,
-                    );
-                    setCompleted(true);
-                    onComplete?.(newScore);
-                  }, 1000);
-                }
-
-                return newScore;
-              });
-
-              return newCount;
-            });
+                setCompleted(true);
+                onComplete?.(newScore);
+              }, 1000);
+            }
 
             setFlippedCards([]);
             setIsChecking(false);
           }, 500);
         } else {
-          speedTimer.reset();
-
           setTimeout(() => {
             setCards((prev) =>
               prev.map((c) =>
@@ -204,14 +202,15 @@ export function MemoryGame({
     [
       cards,
       flippedCards,
+      flipCounts,
       isChecking,
+      matchedPairs,
       moves,
       sessionWords,
       audioContext,
       onComplete,
       completed,
       triggerFeedback,
-      speedTimer,
       score,
     ],
   );
@@ -224,15 +223,16 @@ export function MemoryGame({
     setScore(0);
     setMoves(0);
     setWrongCount(0);
+    setFlipCounts({});
     setStatus("Lật 2 thẻ để tìm cặp từ khớp!");
     setStatusType("info");
     setIsChecking(false);
     setCompleted(false);
-    speedTimer.reset();
-  }, [initializeCards, speedTimer]);
+  }, [initializeCards]);
 
   const pairTotal = Math.max(sessionWords.length, 1);
   const progress = (matchedPairs / pairTotal) * 100;
+  const maxScore = Math.max(sessionWords.length, 1) * MEMORY_PAIR_SCORE;
 
   return (
     <SeasonGamePanel game="memory" maxWidth="5xl" className="relative">
@@ -246,7 +246,7 @@ export function MemoryGame({
         <SpeedScoreBar
           theme="memory"
           score={score}
-          maxScore={Math.max(sessionWords.length, 1) * SPEED_SCORE_MAX}
+          maxScore={maxScore}
           visible={!completed}
         />
       </header>
@@ -356,4 +356,3 @@ export function MemoryGame({
     </SeasonGamePanel>
   );
 }
-

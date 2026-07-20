@@ -1,12 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { UnitGameConfig, UnitGamePart } from "@/types/games";
 import { DEFAULT_ENABLED_GAMES } from "@/types/games";
 import { GameMobileToolbar } from "@/app/components/games/GameMobileToolbar";
 import { SeasonCardDecor } from "@/app/components/games/forest-background";
+import {
+  getLeaderboardHref,
+  shouldBackToLeaderboard,
+  syncLeaderboardPair,
+} from "@/lib/games/leaderboardNav";
 
 type PartSelectionScreenProps = {
   unit: UnitGameConfig;
@@ -34,22 +39,45 @@ export function PartSelectionScreen({
   onOpenUnitsSidebar,
 }: PartSelectionScreenProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const parts = unit.parts ?? [];
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [cardSize, setCardSize] = useState({ width: 408, height: 504 });
 
   useEffect(() => {
+    syncLeaderboardPair(pathname);
+  }, [pathname]);
+
+  const handleBack = useCallback(() => {
+    if (shouldBackToLeaderboard(pathname)) {
+      const href = getLeaderboardHref();
+      if (href) {
+        router.push(href);
+        return;
+      }
+    }
+    router.push(breadcrumbBackUrl);
+  }, [pathname, router, breadcrumbBackUrl]);
+
+  useEffect(() => {
     const updateCardSize = () => {
       const w = window.innerWidth;
+      const h = window.innerHeight;
+      // Keep center card ~66% wide so left/right peeks stay visible
       if (w >= 768) {
-        setCardSize({ width: 408, height: 504 });
+        const height = Math.min(Math.floor(h * 0.55), 504);
+        const width = Math.min(408, Math.round(height * 0.81));
+        setCardSize({ width, height: Math.round(width / 0.81) });
       } else if (w < 400) {
-        setCardSize({ width: 220, height: 280 });
+        const width = Math.min(240, Math.floor(w * 0.66));
+        setCardSize({ width, height: Math.round(width * 1.27) });
       } else if (w < 640) {
-        setCardSize({ width: 260, height: 330 });
+        const width = Math.min(280, Math.floor(w * 0.66));
+        setCardSize({ width, height: Math.round(width * 1.27) });
       } else {
-        setCardSize({ width: 320, height: 400 });
+        const width = Math.min(320, Math.floor(w * 0.5));
+        setCardSize({ width, height: Math.round(width * 1.25) });
       }
     };
 
@@ -109,13 +137,11 @@ export function PartSelectionScreen({
     return null;
   }
 
-  const isDesktop = cardSize.width >= 408;
-  const carouselHeight = isDesktop ? 580 : cardSize.height + 40;
+  const isDesktop = cardSize.width >= 360;
+  const carouselHeight = cardSize.height + 48;
 
   const renderStackedCard = (slot: StackSlot) => {
     const isCenter = slot.position === "center";
-    const isSide = slot.position === "left" || slot.position === "right";
-    const hideOnMobile = isSide && !isDesktop;
 
     const positionStyles =
       slot.position === "left"
@@ -123,32 +149,28 @@ export function PartSelectionScreen({
             left: "50%",
             top: "50%",
             transform: isDesktop
-              ? "translate(-122%, -50%) scale(0.82) rotate(-6deg)"
-              : "translate(-118%, -50%) scale(0.78) rotate(-6deg)",
+              ? "translate(-112%, -50%) scale(0.84) rotate(-5deg)"
+              : "translate(-102%, -50%) scale(0.86) rotate(-4deg)",
             zIndex: 10,
-            opacity: 0.72,
+            opacity: 0.78,
           }
         : slot.position === "right"
           ? {
               left: "50%",
               top: "50%",
               transform: isDesktop
-                ? "translate(22%, -50%) scale(0.82) rotate(6deg)"
-                : "translate(18%, -50%) scale(0.78) rotate(6deg)",
+                ? "translate(12%, -50%) scale(0.84) rotate(5deg)"
+                : "translate(2%, -50%) scale(0.86) rotate(4deg)",
               zIndex: 10,
-              opacity: 0.72,
+              opacity: 0.78,
             }
           : {
               left: "50%",
               top: "50%",
-              transform: isDesktop
-                ? "translate(-50%, -50%) scale(1.01)"
-                : "translate(-50%, -50%) scale(1)",
+              transform: "translate(-50%, -50%) scale(1)",
               zIndex: 30,
               opacity: 1,
             };
-
-    if (hideOnMobile) return null;
 
     const gameCount = getGameCount(slot.part);
 
@@ -215,7 +237,7 @@ export function PartSelectionScreen({
   return (
     <div className="flex min-h-screen flex-col bg-transparent pb-8">
       <GameMobileToolbar
-        onBack={() => router.back()}
+        onBack={handleBack}
         onOpenUnits={onOpenUnitsSidebar}
         title={heading}
         subtitle="Chọn topic"
@@ -224,7 +246,7 @@ export function PartSelectionScreen({
       {showBreadcrumb && (
         <div className="relative hidden min-h-[52px] items-center justify-center px-6 pt-2 pb-2 md:flex">
           <button
-            onClick={() => router.back()}
+            onClick={handleBack}
             className="absolute left-6 top-2 z-20 inline-flex items-center gap-2 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-2.5 font-semibold text-slate-700 shadow-sm transition-all hover:bg-white hover:shadow-md"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
@@ -234,15 +256,13 @@ export function PartSelectionScreen({
           <nav className="inline-flex items-center gap-3 rounded-xl border border-gray-200/80 bg-white/90 px-5 py-3 shadow-md backdrop-blur-sm">
             <Link
               href={breadcrumbBackUrl}
-              className="flex items-center gap-2 font-semibold text-blue-600 transition-colors hover:text-blue-700"
+              className="font-semibold text-blue-600 transition-colors hover:text-blue-700"
             >
-              <span className="text-lg">📚</span>
-              <span>{breadcrumbBackLabel}</span>
+              {breadcrumbBackLabel}
             </Link>
             <span className="text-gray-400">/</span>
-            <span className="flex items-center gap-2 font-semibold text-blue-900">
-              <span className="text-lg">📖</span>
-              <span>{heading}</span>
+            <span className="font-semibold text-blue-900">
+              {heading}
             </span>
           </nav>
         </div>
@@ -262,8 +282,8 @@ export function PartSelectionScreen({
         </div>
 
         <div
-          className={`relative mx-auto mt-1 w-full max-w-6xl md:mt-4 ${isDesktop ? "h-[460px] sm:h-[540px] md:h-[580px]" : ""}`}
-          style={isDesktop ? undefined : { height: carouselHeight }}
+          className="relative mx-auto mt-1 w-full max-w-6xl md:mt-4"
+          style={{ height: carouselHeight }}
         >
           {parts.length > 1 && (
             <>
@@ -286,7 +306,7 @@ export function PartSelectionScreen({
             </>
           )}
 
-          <div className="relative h-full w-full overflow-hidden">
+          <div className="relative h-full w-full overflow-visible">
             {stackedCards.map((slot) => renderStackedCard(slot))}
           </div>
         </div>

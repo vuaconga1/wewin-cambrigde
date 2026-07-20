@@ -5,13 +5,22 @@ import {
   potentialSpeedScore,
   speedScorePercent,
   SPEED_SCORE_CAP_MS,
+  SPEED_SCORE_GRACE_MS,
 } from "@/app/utils/speedScore";
 
-export function useSpeedScoreTimer() {
+type Options = {
+  /** Hold full points for this long before decay starts. */
+  graceMs?: number;
+};
+
+export function useSpeedScoreTimer(options: Options = {}) {
+  const graceMs = options.graceMs ?? SPEED_SCORE_GRACE_MS;
   const [elapsedMs, setElapsedMs] = useState(0);
   const [running, setRunning] = useState(false);
   const startRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
+  const graceRef = useRef(graceMs);
+  graceRef.current = graceMs;
 
   const tick = useCallback(() => {
     if (startRef.current === null) return;
@@ -45,7 +54,7 @@ export function useSpeedScoreTimer() {
   const claimScore = useCallback(() => {
     const elapsed =
       startRef.current !== null ? Date.now() - startRef.current : SPEED_SCORE_CAP_MS;
-    const points = potentialSpeedScore(elapsed);
+    const points = potentialSpeedScore(elapsed, graceRef.current);
     reset();
     return points;
   }, [reset]);
@@ -59,8 +68,8 @@ export function useSpeedScoreTimer() {
   return {
     elapsedMs,
     running,
-    potentialScore: potentialSpeedScore(elapsedMs),
-    percent: speedScorePercent(elapsedMs),
+    potentialScore: potentialSpeedScore(elapsedMs, graceMs),
+    percent: speedScorePercent(elapsedMs, graceMs),
     start,
     stop,
     reset,
