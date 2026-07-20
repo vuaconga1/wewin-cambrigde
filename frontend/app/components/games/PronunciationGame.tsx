@@ -11,6 +11,7 @@ import { shuffleArray } from "@/app/utils/gameWordPool";
 import { SPEED_SCORE_MAX } from "@/app/utils/speedScore";
 import { playGameSfx, resumeGameSfxContext, suspendGameSfxContext } from "@/app/utils/gameSfx";
 import { playWordAudio, stopWordAudio } from "@/app/utils/playWordAudio";
+import { resumeClickSoundContext } from "@/app/components/layouts/clickSound";
 import { isPronunciationMatch } from "@/lib/games/pronunciationMatch";
 import {
   acquireMicStream,
@@ -246,6 +247,7 @@ export function PronunciationGame({
     restoreAudioSessionAfterSpeech();
     resumeAudioContext(promptAudioContextRef.current);
     resumeGameSfxContext();
+    resumeClickSoundContext();
   }, []);
 
   const beginRecordingUI = useCallback(() => {
@@ -638,10 +640,14 @@ export function PronunciationGame({
           </div>
         )}
 
-        <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+        <div
+          className="mt-6 flex flex-col sm:flex-row gap-3 justify-center"
+          data-no-click-sound="true"
+        >
           <button
             onClick={handleListen}
             disabled={isSpeaking}
+            data-no-click-sound="true"
             className={`rounded-xl px-6 py-3 font-bold text-white transition w-full sm:w-auto ${
               isSpeaking
                 ? "bg-gray-400 cursor-not-allowed"
@@ -658,6 +664,7 @@ export function PronunciationGame({
               recordPhase === "processing" ||
               recordPhase === "starting"
             }
+            data-no-click-sound="true"
             className={`rounded-xl px-6 py-3 font-bold text-white transition ${
               recordPhase === "listening"
                 ? "bg-red-600 animate-pulse ring-4 ring-red-300"

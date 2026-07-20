@@ -39,6 +39,18 @@ function getAudioContext() {
   return sharedAudioContext;
 }
 
+export function suspendClickSoundContext() {
+  if (sharedAudioContext?.state === "running") {
+    void sharedAudioContext.suspend();
+  }
+}
+
+export function resumeClickSoundContext() {
+  if (sharedAudioContext?.state === "suspended") {
+    void sharedAudioContext.resume();
+  }
+}
+
 function isDisabledInteractive(element: Element) {
   return (
     element.closest("[data-no-click-sound='true']") !== null ||

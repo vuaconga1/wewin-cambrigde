@@ -3,6 +3,7 @@ import {
   readStoredBgmSettings,
   tryStartBgmPlayback,
 } from "@/app/components/audio/bgmEngine";
+import { suspendClickSoundContext } from "@/app/components/layouts/clickSound";
 import { stopVoiceSfx } from "@/app/utils/voiceSfx";
 import { stopWordAudio } from "@/app/utils/playWordAudio";
 
@@ -34,6 +35,7 @@ export function prepareAudioSessionForSpeech() {
   pauseSharedAudio();
   stopWordAudio();
   stopVoiceSfx();
+  suspendClickSoundContext();
 }
 
 /** iOS Safari: mở mic và giữ stream sống trong suốt phiên ghi âm. */
