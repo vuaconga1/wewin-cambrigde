@@ -55,6 +55,9 @@ export function PronunciationGame({
   const [score, setScore] = useState(0);
   const [correctCount, setCorrectCount] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
+  const [recordPhase, setRecordPhase] = useState<
+    "idle" | "starting" | "listening" | "processing"
+  >("idle");
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [status, setStatus] = useState("Nhấn 'Nghe từ' để bắt đầu nhé! 🎧");
   const [statusType, setStatusType] = useState<"info" | "correct" | "warning">(
@@ -106,6 +109,15 @@ export function PronunciationGame({
   const stopRecording = useCallback(() => {
     isRecordingRef.current = false;
     setIsRecording(false);
+    setRecordPhase("idle");
+  }, []);
+
+  const beginRecordingUI = useCallback(() => {
+    isRecordingRef.current = true;
+    setIsRecording(true);
+    setRecordPhase("starting");
+    setStatus("Đang bật micro... Hãy đọc to từ trên màn hình! 🗣️");
+    setStatusType("info");
   }, []);
 
   const checkPronunciation = useCallback(
@@ -148,7 +160,8 @@ export function PronunciationGame({
     recognition.onstart = () => {
       isRecordingRef.current = true;
       setIsRecording(true);
-      setStatus("Hãy đọc to và rõ ràng nhé! 🗣️");
+      setRecordPhase("listening");
+      setStatus("Đang nghe... Đọc to và rõ ràng nhé! 🗣️");
       setStatusType("info");
     };
 
@@ -165,7 +178,9 @@ export function PronunciationGame({
       if (event.error === "no-speech") {
         setStatus("Chưa nghe thấy giọng nói. Bạn thử đọc to hơn nhé!");
       } else if (event.error === "not-allowed") {
-        setStatus("Hãy cho phép micro trong Cài đặt Safari để ghi âm.");
+        setStatus(
+          "Hãy cho phép micro trong Safari. Sau đó bấm Ghi âm lần nữa nhé!",
+        );
       } else {
         setStatus("Không nghe rõ. Bạn thử lại nhé!");
       }
@@ -175,23 +190,76 @@ export function PronunciationGame({
 
     recognition.onend = () => {
       recognitionRef.current = null;
+      if (isRecordingRef.current) {
+        setRecordPhase("processing");
+        setStatus("Đang xử lý giọng nói...");
+      }
       stopRecording();
     };
 
     return recognition;
   }, [stopRecording]);
 
-  const ensureMicrophoneAccess = useCallback(async (): Promise<boolean> => {
-    if (!navigator.mediaDevices?.getUserMedia) return true;
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((track) => track.stop());
-      return true;
-    } catch {
-      setStatus("Hãy cho phép micro để ghi âm.");
-      setStatusType("warning");
-      return false;
+  const handleRecord = useCallback(() => {
+    if (!isSupported) {
+      alert(
+        "Trình duyệt của bạn chưa hỗ trợ ghi âm. Hãy dùng Chrome hoặc Edge nhé!",
+      );
+      return;
     }
+
+    if (isSpeaking) {
+      setStatus("Đợi phát âm xong rồi ghi nhé! ⏳");
+      return;
+    }
+
+    if (isRecordingRef.current && recognitionRef.current) {
+      setRecordPhase("processing");
+      setStatus("Đang xử lý giọng nói...");
+      recognitionRef.current.stop();
+      return;
+    }
+
+    stopWordAudio();
+    beginRecordingUI();
+
+    const recognition = createRecognition();
+    if (!recognition) {
+      setStatus("Không thể khởi tạo ghi âm. Bạn thử lại nhé!");
+      setStatusType("warning");
+      stopRecording();
+      return;
+    }
+
+    recognitionRef.current = recognition;
+    speedTimer.start();
+
+    try {
+      recognition.start();
+    } catch {
+      recognitionRef.current = null;
+      setStatus(
+        "Không thể bắt đầu ghi âm. Nếu vừa cho phép micro, hãy bấm Ghi âm lần nữa!",
+      );
+      setStatusType("warning");
+      speedTimer.reset();
+      stopRecording();
+    }
+  }, [
+    isSupported,
+    isSpeaking,
+    beginRecordingUI,
+    createRecognition,
+    stopRecording,
+    speedTimer,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.stop();
+      recognitionRef.current = null;
+      stopWordAudio();
+    };
   }, []);
 
   const handleListen = useCallback(() => {
@@ -215,65 +283,6 @@ export function PronunciationGame({
       },
     });
   }, [audioContext, currentWord, isSpeaking]);
-
-  const handleRecord = useCallback(async () => {
-    if (!isSupported) {
-      alert(
-        "Trình duyệt của bạn chưa hỗ trợ ghi âm. Hãy dùng Chrome hoặc Edge nhé!",
-      );
-      return;
-    }
-
-    if (isSpeaking) {
-      setStatus("Đợi phát âm xong rồi ghi nhé! ⏳");
-      return;
-    }
-
-    if (isRecordingRef.current && recognitionRef.current) {
-      recognitionRef.current.stop();
-      return;
-    }
-
-    stopWordAudio();
-
-    const hasMic = await ensureMicrophoneAccess();
-    if (!hasMic) return;
-
-    const recognition = createRecognition();
-    if (!recognition) {
-      setStatus("Không thể khởi tạo ghi âm. Bạn thử lại nhé!");
-      setStatusType("warning");
-      return;
-    }
-
-    recognitionRef.current = recognition;
-    speedTimer.start();
-
-    try {
-      recognition.start();
-    } catch {
-      recognitionRef.current = null;
-      setStatus("Không thể bắt đầu ghi âm. Bạn thử lại nhé!");
-      setStatusType("warning");
-      speedTimer.reset();
-      stopRecording();
-    }
-  }, [
-    isSupported,
-    isSpeaking,
-    ensureMicrophoneAccess,
-    createRecognition,
-    stopRecording,
-    speedTimer,
-  ]);
-
-  useEffect(() => {
-    return () => {
-      recognitionRef.current?.stop();
-      recognitionRef.current = null;
-      stopWordAudio();
-    };
-  }, []);
 
   const handleNext = useCallback(() => {
     if (currentIndex >= playWords.length - 1) {
@@ -332,7 +341,7 @@ export function PronunciationGame({
           <p className="font-semibold">📝 Cách chơi:</p>
           <ol className="mt-2 list-decimal list-inside space-y-1">
             <li>Nhấn "Nghe từ" để nghe phát âm chuẩn.</li>
-            <li>Nhấn "Ghi âm" và đọc theo.</li>
+            <li>Nhấn "Ghi âm" và đọc theo — trên Safari có thể cần bấm 2 lần lần đầu.</li>
             <li>Nhận phản hồi và chuyển sang từ mới!</li>
           </ol>
         </div>
@@ -372,6 +381,25 @@ export function PronunciationGame({
           )}
         </div>
 
+        {recordPhase !== "idle" && (
+          <div
+            className="mt-4 rounded-2xl border-2 border-red-400 bg-red-50 px-4 py-4 text-center shadow-md"
+            role="status"
+            aria-live="polite"
+          >
+            <p className="text-lg font-bold text-red-700">
+              {recordPhase === "starting" && "🎤 Đang bật micro..."}
+              {recordPhase === "listening" && "🔴 Đang ghi âm — đọc to nhé!"}
+              {recordPhase === "processing" && "⏳ Đang xử lý giọng nói..."}
+            </p>
+            {recordPhase === "listening" && (
+              <p className="mt-1 text-sm text-red-600">
+                Bấm &quot;Dừng ghi&quot; bên dưới khi đọc xong
+              </p>
+            )}
+          </div>
+        )}
+
         <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
           <button
             onClick={handleListen}
@@ -386,16 +414,20 @@ export function PronunciationGame({
           </button>
           <button
             onClick={handleRecord}
-            disabled={!isSupported || isSpeaking}
+            disabled={!isSupported || isSpeaking || recordPhase === "processing"}
             className={`rounded-xl px-6 py-3 font-bold text-white transition ${
-              isRecording
-                ? "bg-red-600 animate-pulse"
-                : isSpeaking || !isSupported
+              recordPhase === "listening" || recordPhase === "starting"
+                ? "bg-red-600 animate-pulse ring-4 ring-red-300"
+                : isSpeaking || !isSupported || recordPhase === "processing"
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-orange-500 hover:bg-orange-600 hover:shadow-lg"
             } w-full sm:w-auto`}
           >
-            {isRecording ? "⏹️ Dừng ghi" : "🎤 Ghi âm"}
+            {recordPhase === "listening" || recordPhase === "starting"
+              ? "⏹️ Dừng ghi"
+              : recordPhase === "processing"
+                ? "⏳ Đang xử lý..."
+                : "🎤 Ghi âm"}
           </button>
           <button
             onClick={handleNext}
