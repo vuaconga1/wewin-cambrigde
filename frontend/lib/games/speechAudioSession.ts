@@ -8,6 +8,7 @@ import { stopVoiceSfx } from "@/app/utils/voiceSfx";
 import { stopWordAudio } from "@/app/utils/playWordAudio";
 
 let resumeBgmAfterSpeech = false;
+let micWarmupDone = false;
 
 export function isIosSafari(): boolean {
   if (typeof navigator === "undefined") return false;
@@ -38,13 +39,37 @@ export function prepareAudioSessionForSpeech() {
   suspendClickSoundContext();
 }
 
-/** iOS Safari: mở mic và giữ stream sống trong suốt phiên ghi âm. */
-export type MicStreamResult =
+export type MicPermissionResult = "granted" | "denied" | "unsupported";
+
+/**
+ * Xin quyền micro rồi giải phóng ngay — KHÔNG giữ MediaStream.
+ * Giữ stream sống sẽ xung đột với webkitSpeechRecognition trên iOS Safari.
+ */
+export async function warmupMicPermission(): Promise<MicPermissionResult> {
+  if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+    return "unsupported";
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach((track) => track.stop());
+    micWarmupDone = true;
+    return "granted";
+  } catch {
+    return "denied";
+  }
+}
+
+export function hasWarmedUpMic(): boolean {
+  return micWarmupDone;
+}
+
+/** @deprecated Dùng warmupMicPermission — không giữ stream khi nhận diện giọng nói. */
+export async function acquireMicStream(): Promise<
   | { status: "granted"; stream: MediaStream }
   | { status: "denied" }
-  | { status: "unsupported" };
-
-export async function acquireMicStream(): Promise<MicStreamResult> {
+  | { status: "unsupported" }
+> {
   if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
     return { status: "unsupported" };
   }
