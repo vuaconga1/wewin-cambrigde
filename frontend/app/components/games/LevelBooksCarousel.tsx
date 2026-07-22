@@ -20,7 +20,7 @@ const LEVEL_IMAGE: Record<string, string> = {
   flyers: "/assets/levels/flyers.png",
 };
 
-const IMAGE_VERSION = "10";
+const IMAGE_VERSION = "11";
 
 type StackSlot = {
   book: Book;
