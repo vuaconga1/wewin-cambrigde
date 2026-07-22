@@ -8,19 +8,16 @@ import { isFullscreenGameRoute } from "@/lib/constants/routes";
 /** Nút âm lượng cho trang không dùng ForestPageShell (management, login, …). */
 export function GlobalAudioControls() {
   const pathname = usePathname();
-  const isForestRoute = pathname.startsWith("/games");
-  const isFullscreen = isFullscreenGameRoute(pathname);
+  // `/` = thư viện games (re-export từ /games) — ForestPageShell đã có AudioControls
+  const usesForestShell =
+    pathname === "/" ||
+    pathname.startsWith("/games") ||
+    isFullscreenGameRoute(pathname);
 
-  if (isForestRoute) return null;
-
-  const position = isFullscreen
-    ? "top-14 right-2 sm:right-3 md:top-3 md:right-4"
-    : "top-20 right-2 sm:right-3 md:right-4";
+  if (usesForestShell) return null;
 
   return (
-    <div
-      className={`pointer-events-none fixed z-[60] flex items-center justify-end ${position}`}
-    >
+    <div className="pointer-events-none fixed top-20 right-2 z-[60] flex items-center justify-end sm:right-3 md:right-4">
       <div className="pointer-events-auto">
         <AudioControls compact />
       </div>
