@@ -10,7 +10,7 @@ import {
   type ForestThemeConfig,
 } from "./themes";
 
-const DEFAULT_THEME: ForestSeason = "spring";
+const DEFAULT_THEME: ForestSeason = "wewin";
 
 let currentTheme: ForestSeason = DEFAULT_THEME;
 let hydrated = false;
@@ -43,16 +43,6 @@ function emitChange() {
   listeners.forEach((listener) => listener());
 }
 
-function readStoredTheme(): ForestSeason {
-  try {
-    const saved = localStorage.getItem(FOREST_STORAGE_KEY);
-    if (isForestSeason(saved)) return saved;
-  } catch {
-    // ignore storage errors
-  }
-  return DEFAULT_THEME;
-}
-
 function writeStoredTheme(next: ForestSeason) {
   try {
     localStorage.setItem(FOREST_STORAGE_KEY, next);
@@ -68,14 +58,12 @@ function applyTheme(next: ForestSeason, persist: boolean) {
   emitChange();
 }
 
-/** Call once on client to load saved theme into the shared store. */
+/** Always start on WeWin when the site opens; user can still switch during the session. */
 function ensureHydrated() {
   if (hydrated || typeof window === "undefined") return;
   hydrated = true;
-  const saved = readStoredTheme();
-  if (saved !== currentTheme) {
-    currentTheme = saved;
-  }
+  currentTheme = DEFAULT_THEME;
+  writeStoredTheme(DEFAULT_THEME);
   emitChange();
 }
 

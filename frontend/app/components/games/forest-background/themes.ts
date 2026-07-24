@@ -1,6 +1,6 @@
-export type ForestSeason = "spring" | "summer" | "autumn" | "winter";
+export type ForestSeason = "spring" | "summer" | "autumn" | "winter" | "wewin";
 
-export type ParticleKind = "petals" | "fireflies" | "leaves" | "snow";
+export type ParticleKind = "petals" | "fireflies" | "leaves" | "snow" | "sparkles";
 
 export type ForestThemeConfig = {
   id: ForestSeason;
@@ -23,6 +23,7 @@ export const FOREST_SEASONS: ForestSeason[] = [
   "summer",
   "autumn",
   "winter",
+  "wewin",
 ];
 
 export const FOREST_THEMES: Record<ForestSeason, ForestThemeConfig> = {
@@ -61,6 +62,15 @@ export const FOREST_THEMES: Record<ForestSeason, ForestThemeConfig> = {
     sky: "linear-gradient(180deg, #1a2744 0%, #4a6fa5 50%, #e8eef5 100%)",
     accent: "#A8D8EA",
     particle: "snow",
+  },
+  wewin: {
+    id: "wewin",
+    label: "WeWin",
+    icon: "🏆",
+    scene: `${ASSET_BASE}/scene-wewin.png`,
+    sky: "linear-gradient(180deg, #7ec8f0 0%, #b8e6ff 45%, #c8e8a8 100%)",
+    accent: "#D4AF37",
+    particle: "sparkles",
   },
 };
 

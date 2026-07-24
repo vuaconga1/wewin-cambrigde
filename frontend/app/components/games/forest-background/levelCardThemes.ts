@@ -138,6 +138,36 @@ const SEASON_LEVEL_PALETTES: Record<
       subtitleColor: "#486070",
     },
   },
+  wewin: {
+    kids: {
+      topBg: "linear-gradient(180deg, #ffffff 0%, #f7f4eb 100%)",
+      bottomBg: "linear-gradient(145deg, #f5e6b8 0%, #d4af37 55%, #b68d4c 100%)",
+      ring: "ring-[#D4AF37]/70 hover:ring-[#E5C38B]",
+      titleColor: "#000B29",
+      subtitleColor: "#3d4a6b",
+    },
+    starters: {
+      topBg: "linear-gradient(180deg, #ffffff 0%, #eef2fb 100%)",
+      bottomBg: "linear-gradient(145deg, #a8c4f0 0%, #1e40af 55%, #000B29 100%)",
+      ring: "ring-[#1e40af]/50 hover:ring-[#D4AF37]",
+      titleColor: "#000B29",
+      subtitleColor: "#3d4a6b",
+    },
+    movers: {
+      topBg: "linear-gradient(180deg, #ffffff 0%, #f0f7f2 100%)",
+      bottomBg: "linear-gradient(145deg, #b8e0c0 0%, #3d8b5a 55%, #1e5c3a 100%)",
+      ring: "ring-[#3d8b5a]/50 hover:ring-[#D4AF37]",
+      titleColor: "#000B29",
+      subtitleColor: "#3d5a48",
+    },
+    flyers: {
+      topBg: "linear-gradient(180deg, #ffffff 0%, #f5f0e8 100%)",
+      bottomBg: "linear-gradient(145deg, #e5c38b 0%, #1e40af 50%, #000B29 100%)",
+      ring: "ring-[#D4AF37]/60 hover:ring-[#1e40af]",
+      titleColor: "#000B29",
+      subtitleColor: "#3d4a6b",
+    },
+  },
 };
 
 const BOOK_ID_TO_LEVEL: Record<string, LevelKey> = {

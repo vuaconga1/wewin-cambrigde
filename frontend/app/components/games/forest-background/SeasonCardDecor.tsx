@@ -33,6 +33,12 @@ const CARD_DECORS: Record<ForestSeason, DecorSpec[]> = {
     { emoji: "⛄", className: "bottom-2 left-1.5 text-base rotate-[8deg] opacity-85 sm:bottom-3 sm:left-2 sm:text-lg" },
     { emoji: "❄️", className: "bottom-1.5 right-1.5 text-xl rotate-[-20deg] sm:bottom-2 sm:right-2 sm:text-2xl md:text-3xl" },
   ],
+  wewin: [
+    { emoji: "🏆", className: "left-1 top-1 text-xl rotate-[-10deg] sm:left-2 sm:top-2 sm:text-2xl md:text-3xl" },
+    { emoji: "⭐", className: "right-1 top-1.5 text-lg rotate-[18deg] sm:right-2 sm:top-2 sm:text-xl md:text-2xl" },
+    { emoji: "💡", className: "bottom-2 left-1.5 text-base rotate-[10deg] opacity-85 sm:bottom-3 sm:left-2 sm:text-lg" },
+    { emoji: "🎓", className: "bottom-1.5 right-1.5 text-xl rotate-[-14deg] sm:bottom-2 sm:right-2 sm:text-2xl md:text-3xl" },
+  ],
 };
 
 type SeasonCardDecorProps = {
@@ -42,7 +48,7 @@ type SeasonCardDecorProps = {
 
 export function SeasonCardDecor({ compact = false }: SeasonCardDecorProps) {
   const ctx = useForestThemeContextOptional();
-  const season = ctx?.theme ?? "spring";
+  const season = ctx?.theme ?? "wewin";
   const decors = CARD_DECORS[season];
   const visible = compact ? decors.filter((_, i) => i % 2 === 0) : decors;
 

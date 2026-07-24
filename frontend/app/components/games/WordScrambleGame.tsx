@@ -128,6 +128,25 @@ export function WordScrambleGame({
     speedTimer,
   ]);
 
+  const handleNext = useCallback(() => {
+    if (currentIndex >= playWords.length - 1) {
+      setStatus(
+        `🌟 Xuất sắc! Bạn đã hoàn thành tất cả các từ! Tổng điểm: ${score} điểm`,
+      );
+      setStatusType("correct");
+      if (!completed) {
+        setCompleted(true);
+        onComplete?.(score);
+      }
+      return;
+    }
+    playGameSfx("levelComplete");
+    setCurrentIndex((prev) => prev + 1);
+    setUserInput("");
+    setStatus("Sắp xếp các chữ cái để tạo thành từ đúng!");
+    setStatusType("info");
+  }, [completed, currentIndex, onComplete, playWords.length, score]);
+
   const handleReset = useCallback(() => {
     setPlayWords(shuffleArray(words));
     setCurrentIndex(0);
@@ -226,6 +245,14 @@ export function WordScrambleGame({
           className={`rounded-xl px-6 py-3 font-bold text-white transition hover:shadow-lg w-full sm:w-auto ${ui.primaryBtn}`}
         >
           ✅ Kiểm tra
+        </button>
+        <button
+          onClick={handleNext}
+          className={`rounded-xl px-6 py-3 font-bold text-white transition hover:shadow-lg w-full sm:w-auto ${ui.primaryBtn}`}
+        >
+          {currentIndex >= playWords.length - 1
+            ? "🏁 Hoàn thành"
+            : "➡️ Từ tiếp theo"}
         </button>
         <button
           onClick={handleReset}

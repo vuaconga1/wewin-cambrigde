@@ -107,6 +107,27 @@ const STYLES: Record<ForestSeason, Omit<LeaderboardSeasonStyle, "icon" | "accent
     emptyIcon: "❄️",
     decor: ["❄️", "⛄", "✨"],
   },
+  wewin: {
+    heading: "text-[#000B29]",
+    subtext: "text-blue-950/70",
+    backBtn:
+      "border-[#D4AF37]/60 bg-white/85 text-[#000B29] hover:bg-white shadow-amber-200/30",
+    monthBtn:
+      "border-[#D4AF37]/50 bg-white/85 text-blue-900 hover:bg-white shadow-amber-200/20",
+    monthLabel: "text-[#000B29]",
+    panel:
+      "border-[#D4AF37]/50 bg-white/85 text-blue-950/80 shadow-amber-200/20",
+    row: "border-[#D4AF37]/40 bg-white/92 shadow-amber-100/40",
+    rankCircle: "bg-[#1e40af] text-[#F5E6B8]",
+    badge: "bg-[#D4AF37] text-[#000B29]",
+    score: "text-[#000B29]",
+    star: "fill-[#D4AF37] text-[#D4AF37]",
+    footer: "bg-gradient-to-r from-[#000B29] via-[#1e40af] to-[#D4AF37]",
+    footerAccent: "text-[#F5E6B8]",
+    avatar: "from-[#1e40af] to-[#D4AF37] text-white",
+    emptyIcon: "🏆",
+    decor: ["🏆", "⭐", "🎓"],
+  },
 };
 
 export function getLeaderboardSeasonStyle(

@@ -10,6 +10,7 @@ import {
   SeasonGamePanel,
   useGameSeasonTheme,
 } from "@/app/components/games/forest-background";
+import "@/app/components/games/forest-background/forest-animations.css";
 
 type Props = FlipCardGameConfig & {
   onComplete?: (score: number) => void;
@@ -28,6 +29,7 @@ export function FlipCardGame({
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [revealedCount, setRevealedCount] = useState(0);
   const [completed, setCompleted] = useState(false);
+  const [sparkleIds, setSparkleIds] = useState<Set<string>>(new Set());
 
   const [shuffledWords, setShuffledWords] = useState(words);
   useEffect(() => {
@@ -57,10 +59,19 @@ export function FlipCardGame({
   }, [completed]);
 
   const handleReveal = useCallback(
-    (wordId: string, wordText: string) => {
+    (wordId: string) => {
       if (revealed.has(wordId)) return;
 
       setRevealed((prev) => new Set([...prev, wordId]));
+      setSparkleIds((prev) => new Set([...prev, wordId]));
+      window.setTimeout(() => {
+        setSparkleIds((prev) => {
+          const next = new Set(prev);
+          next.delete(wordId);
+          return next;
+        });
+      }, 700);
+
       setRevealedCount((prev) => {
         const next = prev + 1;
         if (!completed && next === shuffledWords.length) {
@@ -84,6 +95,7 @@ export function FlipCardGame({
     setRevealed(new Set());
     setRevealedCount(0);
     setCompleted(false);
+    setSparkleIds(new Set());
   }, [words]);
 
   return (
@@ -108,40 +120,71 @@ export function FlipCardGame({
       <div className="mt-6 grid grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-4">
         {shuffledWords.map((word) => {
           const isRevealed = revealed.has(word.id);
+          const showSparkle = sparkleIds.has(word.id);
 
           return (
             <button
               key={word.id}
-              onClick={() => handleReveal(word.id, word.text)}
+              onClick={() => handleReveal(word.id)}
               disabled={isRevealed}
               aria-label={isRevealed ? word.text : "Lật thẻ"}
-              className={`rounded-xl md:rounded-2xl border-2 p-1.5 sm:p-2.5 md:p-6 text-center transition-all min-h-[78px] sm:min-h-[88px] md:min-h-[120px] flex items-center justify-center ${
-                isRevealed ? `${ui.cardRevealed} cursor-default` : ui.cardHidden
+              className={`forest-card-flip relative h-[110px] sm:h-[130px] md:h-[160px] w-full rounded-xl md:rounded-2xl ${
+                showSparkle ? "forest-card-sparkle" : ""
               }`}
             >
-              {isRevealed ? (
-                <div className="flex flex-col items-center justify-center w-full">
-                  <WordVisual
-                    icon={word.icon}
-                    emoji={word.emoji}
-                    alt={word.text}
-                    className="text-lg sm:text-2xl md:text-4xl lg:text-5xl mb-1 md:mb-2"
-                    imageClassName="h-8 w-8 sm:h-12 sm:w-12 md:h-16 md:w-16 object-contain"
-                  />
-                  <div className={`text-[11px] sm:text-sm md:text-xl lg:text-2xl font-bold break-words leading-tight ${ui.heading}`}>
-                    {word.text}
-                  </div>
-                  {word.meaning && (
-                    <div className={`mt-1 text-[10px] sm:text-xs md:text-base lg:text-lg leading-tight ${ui.subtext}`}>
-                      {word.meaning}
-                    </div>
+              <div
+                className={`forest-card-flip-inner h-full ${
+                  isRevealed ? "is-flipped" : ""
+                }`}
+              >
+                <div
+                  className={`forest-card-face border-2 p-1.5 sm:p-2 md:p-3 ${ui.cardHidden}`}
+                >
+                  {ui.cardBackImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={ui.cardBackImage}
+                      alt=""
+                      className="h-7 w-auto max-h-[70%] max-w-[85%] object-contain sm:h-9 md:h-12 select-none"
+                      aria-hidden
+                      draggable={false}
+                    />
+                  ) : (
+                    <span
+                      className="text-2xl sm:text-3xl md:text-5xl select-none"
+                      aria-hidden
+                    >
+                      {ui.cardBack}
+                    </span>
                   )}
                 </div>
-              ) : (
-                <span className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl select-none" aria-hidden>
-                  {ui.cardBack}
-                </span>
-              )}
+
+                <div
+                  className={`forest-card-face forest-card-face-front border-2 p-1 sm:p-1.5 md:p-2.5 cursor-default ${ui.cardRevealed}`}
+                >
+                  <div className="forest-card-face-content gap-0.5 px-0.5">
+                    <WordVisual
+                      icon={word.icon}
+                      emoji={word.emoji}
+                      alt={word.text}
+                      className="text-base sm:text-xl md:text-3xl shrink-0 leading-none"
+                      imageClassName="h-7 w-7 sm:h-10 sm:w-10 md:h-12 md:w-12 object-contain shrink-0"
+                    />
+                    <div
+                      className={`w-full text-[10px] sm:text-xs md:text-sm lg:text-base font-bold break-words leading-tight line-clamp-2 text-center ${ui.heading}`}
+                    >
+                      {word.text}
+                    </div>
+                    {word.meaning && (
+                      <div
+                        className={`w-full text-[9px] sm:text-[10px] md:text-xs lg:text-sm leading-tight line-clamp-1 text-center ${ui.subtext}`}
+                      >
+                        {word.meaning}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </button>
           );
         })}

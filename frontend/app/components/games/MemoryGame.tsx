@@ -307,7 +307,18 @@ export function MemoryGame({
                 </div>
               ) : (
                 <div className="flex items-center justify-center h-full">
-                  <span className="text-xl sm:text-2xl md:text-5xl lg:text-6xl">{ui.cardBack}</span>
+                  {ui.cardBackImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={ui.cardBackImage}
+                      alt=""
+                      className="h-7 w-auto max-w-[85%] object-contain sm:h-9 md:h-12 select-none"
+                      aria-hidden
+                      draggable={false}
+                    />
+                  ) : (
+                    <span className="text-xl sm:text-2xl md:text-5xl lg:text-6xl">{ui.cardBack}</span>
+                  )}
                 </div>
               )}
             </button>

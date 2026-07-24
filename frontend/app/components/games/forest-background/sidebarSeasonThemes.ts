@@ -54,6 +54,16 @@ const SIDEBAR_SEASON: Record<ForestSeason, Omit<SidebarSeasonStyle, "accent" | "
     iconBoxActiveBg: "bg-[#A8D8EA] text-slate-800 shadow-md shadow-sky-300/30",
     toggleBtnBg: "bg-sky-500 hover:bg-sky-600 border-sky-300/40",
   },
+  wewin: {
+    headerBg: "bg-gradient-to-r from-[#000B29] via-[#0a1a4a] to-[#1a3a7a]",
+    headerSubText: "text-amber-200/85",
+    iconColor: "text-[#D4AF37]",
+    itemTextActive: "text-blue-900",
+    itemActiveBg:
+      "relative overflow-hidden bg-white border-l-4 border-[#D4AF37] rounded-r-xl shadow-sm shadow-amber-200/40 scale-[1.01]",
+    iconBoxActiveBg: "bg-[#1e40af] text-[#F5E6B8] shadow-md shadow-blue-400/30",
+    toggleBtnBg: "bg-[#1e40af] hover:bg-[#1e3a8a] border-[#D4AF37]/50",
+  },
 };
 
 export function getSidebarSeasonStyle(season: ForestSeason): SidebarSeasonStyle {

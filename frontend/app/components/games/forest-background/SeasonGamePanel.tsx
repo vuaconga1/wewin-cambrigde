@@ -15,7 +15,7 @@ export function useGameSeasonTheme(game: SeasonGameType): {
   ui: GameSeasonTheme;
 } {
   const ctx = useForestThemeContextOptional();
-  const season = ctx?.theme ?? "spring";
+  const season = ctx?.theme ?? "wewin";
   const ui = getGameSeasonTheme(season, game);
   return { season, ui };
 }

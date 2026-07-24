@@ -74,6 +74,73 @@
   animation: forest-lantern 1.5s ease-in-out infinite;
 }
 
+@keyframes forest-card-sparkle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+.forest-card-flip {
+  perspective: 900px;
+}
+
+.forest-card-flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(0.4, 0.2, 0.2, 1);
+}
+
+.forest-card-flip-inner.is-flipped {
+  transform: rotateY(180deg);
+}
+
+.forest-card-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: inherit;
+}
+
+.forest-card-face-front {
+  transform: rotateY(180deg);
+}
+
+.forest-card-face-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.forest-card-sparkle::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: 0 0 12px 2px rgba(212, 175, 55, 0.55);
+  animation: forest-card-sparkle 0.7s ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .forest-fall,
   .forest-firefly,
@@ -81,5 +148,13 @@
   .forest-sway-delayed,
   .forest-lantern {
     animation: none !important;
+  }
+
+  .forest-card-flip-inner {
+    transition: none;
+  }
+
+  .forest-card-sparkle::after {
+    animation: none;
   }
 }
