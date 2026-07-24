@@ -67,7 +67,7 @@ export const FOREST_THEMES: Record<ForestSeason, ForestThemeConfig> = {
     id: "wewin",
     label: "WeWin",
     icon: "🏆",
-    scene: `${ASSET_BASE}/scene-wewin.png`,
+    scene: `${ASSET_BASE}/wewin-background.png`,
     sky: "linear-gradient(180deg, #7ec8f0 0%, #b8e6ff 45%, #c8e8a8 100%)",
     accent: "#D4AF37",
     particle: "sparkles",
