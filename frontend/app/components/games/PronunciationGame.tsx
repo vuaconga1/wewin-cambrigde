@@ -14,14 +14,6 @@ import { playWordAudio, stopWordAudio } from "@/app/utils/playWordAudio";
 import { resumeClickSoundContext } from "@/app/components/layouts/clickSound";
 import { isPronunciationMatch } from "@/lib/games/pronunciationMatch";
 import {
-  cancelMediaRecording,
-  isMediaRecorderSupported,
-  startMediaRecording,
-  stopMediaRecording,
-  transcribeAudioBlob,
-  type MediaRecordingSession,
-} from "@/lib/games/mediaRecorderSpeech";
-import {
   hasWarmedUpMic,
   isEmbeddedFrame,
   isIosDevice,
@@ -85,7 +77,6 @@ export function PronunciationGame({
     "info",
   );
   const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const mediaSessionRef = useRef<MediaRecordingSession | null>(null);
   const isRecordingRef = useRef(false);
   /** User muốn giữ mic mở (đến khi có kết quả hoặc bấm Dừng). */
   const wantListeningRef = useRef(false);
@@ -148,18 +139,17 @@ export function PronunciationGame({
     currentWordRef.current = currentWord;
   }, [currentWord]);
 
-  /** iPhone/iPad: MediaRecorder + Whisper (SpeechRecognition trên Safari hay aborted). */
-  const useMediaRecorderPath = iosDevice;
+  /** Chỉ Web Speech API (SpeechRecognition / webkitSpeechRecognition). */
+  const hasSpeechRecognition = useMemo(
+    () =>
+      typeof window !== "undefined" &&
+      ("webkitSpeechRecognition" in window || "SpeechRecognition" in window),
+    [],
+  );
 
   useEffect(() => {
-    setIsSupported(
-      typeof window !== "undefined" &&
-        (useMediaRecorderPath
-          ? isMediaRecorderSupported()
-          : "webkitSpeechRecognition" in window ||
-            "SpeechRecognition" in window),
-    );
-  }, [useMediaRecorderPath]);
+    setIsSupported(hasSpeechRecognition);
+  }, [hasSpeechRecognition]);
 
   const getPromptAudioContext = useCallback(() => {
     if (typeof window === "undefined") return null;
@@ -292,8 +282,6 @@ export function PronunciationGame({
   }, []);
 
   const finishSpeechSession = useCallback(() => {
-    cancelMediaRecording(mediaSessionRef.current);
-    mediaSessionRef.current = null;
     restoreAudioSessionAfterSpeech();
     resumeAudioContext(promptAudioContextRef.current);
     resumeGameSfxContext();
@@ -604,91 +592,10 @@ export function PronunciationGame({
 
   startRecognitionRef.current = startRecognition;
 
-  const processMediaRecording = useCallback(async () => {
-    const session = mediaSessionRef.current;
-    mediaSessionRef.current = null;
-    if (!session) {
-      finishSpeechSession();
-      stopRecording();
-      return;
-    }
-
-    setRecordPhase("processing");
-    setStatus("Đang xử lý giọng nói...");
-    setMicDebug("mediarecorder: stopping → upload");
-
-    try {
-      const blob = await stopMediaRecording(session);
-      setMicDebug(`mediarecorder: blob ${Math.round(blob.size / 1024)}KB → whisper`);
-      const word = currentWordRef.current?.text;
-      const { transcript } = await transcribeAudioBlob(blob, word);
-      setMicDebug(`whisper: "${transcript}"`);
-      if (!transcript) {
-        setStatus("Chưa nghe rõ. Bấm Ghi âm và đọc to hơn nhé!");
-        setStatusType("warning");
-        speedTimer.reset();
-      } else if (word) {
-        checkPronunciationRef.current(transcript, word);
-      }
-    } catch (error) {
-      const err = error as Error & { messageVi?: string; status?: number };
-      setMicDebug(
-        `mediarecorder error: ${err.message}${err.status ? ` (${err.status})` : ""}`,
-      );
-      if (err.message === "empty-recording") {
-        setStatus("Ghi âm quá ngắn. Giữ nút ghi lâu hơn một chút nhé!");
-      } else if (err.message === "missing-openai-key") {
-        setStatus(
-          err.messageVi ||
-            "Chưa cấu hình OPENAI_API_KEY trên server. Liên hệ giáo viên/admin.",
-        );
-      } else {
-        setStatus(
-          err.messageVi ||
-            "Không nhận diện được giọng nói. Kiểm tra mạng rồi thử lại nhé!",
-        );
-      }
-      setStatusType("warning");
-      speedTimer.reset();
-    } finally {
-      finishSpeechSession();
-      stopRecording();
-    }
-  }, [finishSpeechSession, stopRecording, speedTimer]);
-
-  const startMediaRecorderPath = useCallback(async () => {
-    try {
-      setMicDebug("mediarecorder: getUserMedia → start");
-      const session = await startMediaRecording();
-      mediaSessionRef.current = session;
-      isRecordingRef.current = true;
-      sessionStartedRef.current = true;
-      recordGestureLockRef.current = false;
-      setIsRecording(true);
-      setRecordPhase("listening");
-      speedTimer.start();
-      setMicDebug(`mediarecorder: recording (${session.mimeType || "default"})`);
-      setStatus("Đang ghi âm... Đọc to và rõ ràng, rồi bấm Dừng ghi! 🗣️");
-      setStatusType("info");
-    } catch {
-      mediaSessionRef.current = null;
-      finishSpeechSession();
-      setMicDebug("mediarecorder: permission denied / failed");
-      setStatus(
-        "Không mở được micro. Vào Cài đặt > Safari > Micro và cho phép trang này.",
-      );
-      setStatusType("warning");
-      speedTimer.reset();
-      stopRecording();
-    }
-  }, [finishSpeechSession, stopRecording, speedTimer]);
-
   const handleRecord = useCallback(() => {
     if (!isSupported) {
       alert(
-        useMediaRecorderPath
-          ? "Trình duyệt chưa hỗ trợ ghi âm file. Hãy dùng Safari mới hơn nhé!"
-          : "Trình duyệt của bạn chưa hỗ trợ ghi âm. Hãy dùng Chrome hoặc Edge nhé!",
+        "Trình duyệt chưa hỗ trợ Web Speech API. Hãy dùng Safari (iPhone), Chrome hoặc Edge nhé!",
       );
       return;
     }
@@ -704,11 +611,6 @@ export function PronunciationGame({
       wantListeningRef.current = false;
       softRestartRef.current = false;
       clearRestartTimer();
-
-      if (useMediaRecorderPath && mediaSessionRef.current) {
-        void processMediaRecording();
-        return;
-      }
 
       if (recognitionRef.current) {
         setRecordPhase("processing");
@@ -759,12 +661,6 @@ export function PronunciationGame({
 
     beginRecordingUI();
 
-    if (useMediaRecorderPath) {
-      setMicDebug("starting → MediaRecorder");
-      void startMediaRecorderPath();
-      return;
-    }
-
     setMicDebug(
       iosDevice && !hasWarmedUpMic()
         ? "starting (mic chưa warm-up — bấm Nghe từ trước nếu bị ngắt)"
@@ -776,11 +672,8 @@ export function PronunciationGame({
     isSpeaking,
     recordPhase,
     iosDevice,
-    useMediaRecorderPath,
     beginRecordingUI,
     startRecognition,
-    startMediaRecorderPath,
-    processMediaRecording,
     stopPromptAudio,
     releasePromptAudioContext,
     finishSpeechSession,
@@ -799,8 +692,6 @@ export function PronunciationGame({
       }
       recognitionRef.current?.stop();
       recognitionRef.current = null;
-      cancelMediaRecording(mediaSessionRef.current);
-      mediaSessionRef.current = null;
       stopPromptAudio();
       stopWordAudio();
     };
@@ -932,7 +823,7 @@ export function PronunciationGame({
 
         {!isSupported && (
           <div className="mt-4 rounded-lg bg-red-100 p-3 text-center text-sm sm:text-base text-red-700">
-            ⚠️ Trình duyệt của bạn không hỗ trợ ghi âm. Hãy dùng Safari (iPhone),
+            ⚠️ Trình duyệt không hỗ trợ Web Speech API. Hãy dùng Safari (iPhone),
             Chrome hoặc Edge nhé!
           </div>
         )}
@@ -949,9 +840,8 @@ export function PronunciationGame({
           <ol className="mt-2 list-decimal list-inside space-y-1">
             <li>Nhấn &quot;Nghe từ&quot; để nghe phát âm chuẩn.</li>
             <li>
-              {useMediaRecorderPath
-                ? 'Nhấn "Ghi âm", đọc to từ, rồi nhấn "Dừng ghi" để chấm điểm.'
-                : 'Nhấn "Ghi âm" và đọc theo — Chrome/Edge trên máy tính hoặc Android.'}
+              Nhấn &quot;Ghi âm&quot; và đọc theo — dùng Web Speech trên Safari
+              (iPhone) hoặc Chrome/Edge.
             </li>
             <li>Nhận phản hồi và chuyển sang từ mới!</li>
           </ol>
