@@ -18,6 +18,7 @@ import {
   isEmbeddedFrame,
   isIosDevice,
   prepareAudioSessionForSpeech,
+  releaseWebAudioForSpeech,
   restoreAudioSessionAfterSpeech,
   resumeAudioContext,
   suspendAudioContext,
@@ -86,6 +87,10 @@ export function PronunciationGame({
   const softRestartCountRef = useRef(0);
   const lastErrorRef = useRef<string | null>(null);
   const gotResultRef = useRef(false);
+  /** Đã từng nhận onstart trong phiên ghi hiện tại. */
+  const sessionStartedRef = useRef(false);
+  /** User chủ động bấm Dừng — tránh hiện lỗi aborted. */
+  const userStoppedRef = useRef(false);
   const restartTimerRef = useRef<number | null>(null);
   const startRecognitionRef = useRef<() => void>(() => {});
   const currentWordRef = useRef<WordItem | undefined>(undefined);
@@ -311,8 +316,8 @@ export function PronunciationGame({
   const checkPronunciationRef = useRef(checkPronunciation);
   checkPronunciationRef.current = checkPronunciation;
 
-  /** Soft-end retries — đủ thời gian cho học sinh đọc trên iPhone. */
-  const MAX_SOFT_RESTARTS = 15;
+  /** Soft-end retries — chỉ cho no-speech sau khi onstart thành công. */
+  const MAX_NO_SPEECH_RESTARTS = 8;
 
   const scheduleSoftRestart = useCallback(
     (delayMs: number) => {
@@ -342,12 +347,13 @@ export function PronunciationGame({
 
     const recognition = new SpeechRecognitionCtor();
     recognition.lang = "en-US";
-    // iOS WebKit: continuous=true thường aborted ngay. Dùng false + restart onend.
+    // iOS WebKit: continuous=true thường aborted ngay. Dùng false + restart khi no-speech.
     recognition.continuous = false;
     recognition.interimResults = iosDevice;
 
     recognition.onstart = () => {
       isRecordingRef.current = true;
+      sessionStartedRef.current = true;
       recordGestureLockRef.current = false;
       setIsRecording(true);
       setRecordPhase("listening");
@@ -409,23 +415,24 @@ export function PronunciationGame({
       lastErrorRef.current = error;
       setMicDebug(`onerror: ${error}`);
 
-      // Soft errors: để onend restart. Không restore BGM ở đây.
+      // Chỉ no-speech (sau khi đã onstart) mới soft-restart.
+      // aborted: restart từ timer trên iOS hầu như luôn abort lại → loop 1→15 vô ích.
       if (
-        (error === "aborted" || error === "no-speech") &&
+        error === "no-speech" &&
         wantListeningRef.current &&
-        !gotResultRef.current
+        !gotResultRef.current &&
+        sessionStartedRef.current
       ) {
         softRestartRef.current = true;
-        setStatus(
-          error === "aborted"
-            ? "Đang kết nối lại micro... Giữ nguyên và đọc to nhé!"
-            : "Vẫn đang nghe... Hãy đọc to hơn một chút! 🗣️",
-        );
+        setStatus("Vẫn đang nghe... Hãy đọc to hơn một chút! 🗣️");
         setStatusType("info");
         return;
       }
 
-      if (error === "aborted") return;
+      if (error === "aborted") {
+        // Để onend dọn session — không đánh dấu soft-restart.
+        return;
+      }
 
       wantListeningRef.current = false;
       softRestartRef.current = false;
@@ -455,45 +462,61 @@ export function PronunciationGame({
       setMicDebug((prev) => (prev ? `${prev} → onend` : "onend"));
       recognitionRef.current = null;
 
-      const shouldSoftRestart =
+      const canRestartNoSpeech =
         wantListeningRef.current &&
         !gotResultRef.current &&
-        softRestartCountRef.current < MAX_SOFT_RESTARTS &&
-        // Restart khi soft error, hoặc iOS end sớm chưa kịp nghe (kể cả không có error).
-        (softRestartRef.current ||
-          (iosDevice &&
-            lastErrorRef.current !== "not-allowed" &&
-            lastErrorRef.current !== "service-not-allowed" &&
-            lastErrorRef.current !== "network"));
+        softRestartRef.current &&
+        lastErrorRef.current === "no-speech" &&
+        sessionStartedRef.current &&
+        softRestartCountRef.current < MAX_NO_SPEECH_RESTARTS;
 
-      if (shouldSoftRestart) {
+      if (canRestartNoSpeech) {
         softRestartRef.current = false;
-        // aborted cần delay để audio session nhả; no-speech restart nhanh hơn.
-        const delay = lastErrorRef.current === "aborted" ? 180 : 40;
         lastErrorRef.current = null;
-        scheduleSoftRestart(delay);
+        // Gọi ngay trong onend — giữ "chuỗi" session Safari tốt hơn setTimeout.
+        softRestartCountRef.current += 1;
+        setMicDebug(
+          (prev) =>
+            `${prev ?? "onend"} → no-speech restart #${softRestartCountRef.current}`,
+        );
+        setRecordPhase("listening");
+        setStatus("Đang nghe... Đọc to và rõ ràng nhé! 🗣️");
+        setStatusType("info");
+        try {
+          startRecognitionRef.current();
+        } catch {
+          scheduleSoftRestart(80);
+        }
         return;
       }
 
       const wasListening = isRecordingRef.current;
-      const exhaustedRestarts =
-        wantListeningRef.current &&
-        !gotResultRef.current &&
-        softRestartCountRef.current >= MAX_SOFT_RESTARTS;
+      const wasAborted = lastErrorRef.current === "aborted" && !userStoppedRef.current;
 
       wantListeningRef.current = false;
       softRestartRef.current = false;
       clearRestartTimer();
       finishSpeechSession();
 
-      if (exhaustedRestarts) {
+      if (gotResultRef.current) {
+        // Status đã set bởi checkPronunciation — không ghi đè.
+      } else if (userStoppedRef.current) {
+        // User bấm Dừng — không báo lỗi.
+      } else if (wasAborted) {
         setStatus(
-          "Micro bị Safari ngắt liên tục. Tắt nhạc nền (🔊), bấm Nghe từ rồi Ghi âm lại.",
+          "Safari hủy micro (xung đột âm thanh). Tắt nhạc nền (🔊), đợi 1 giây rồi bấm Ghi âm lại.",
         );
         setStatusType("warning");
         speedTimer.reset();
-      } else if (gotResultRef.current) {
-        // Status đã set bởi checkPronunciation — không ghi đè.
+      } else if (
+        softRestartCountRef.current >= MAX_NO_SPEECH_RESTARTS &&
+        !gotResultRef.current
+      ) {
+        setStatus(
+          "Chưa nghe thấy giọng nói. Bấm Ghi âm lại và đọc to ngay khi mic bật!",
+        );
+        setStatusType("warning");
+        speedTimer.reset();
       } else if (wasListening) {
         setRecordPhase("processing");
         setStatus("Đang xử lý giọng nói...");
@@ -503,6 +526,7 @@ export function PronunciationGame({
         );
         setStatusType("warning");
       }
+      userStoppedRef.current = false;
       stopRecording();
     };
 
@@ -531,13 +555,15 @@ export function PronunciationGame({
       recognition.start();
     } catch (error) {
       recognitionRef.current = null;
-      // InvalidStateError khi restart quá sớm — thử lại ngắn.
+      // InvalidStateError khi no-speech restart quá sớm.
       if (
         wantListeningRef.current &&
-        softRestartCountRef.current < MAX_SOFT_RESTARTS
+        sessionStartedRef.current &&
+        softRestartCountRef.current < MAX_NO_SPEECH_RESTARTS
       ) {
         softRestartRef.current = true;
-        scheduleSoftRestart(200);
+        lastErrorRef.current = "no-speech";
+        scheduleSoftRestart(150);
         return;
       }
       finishSpeechSession();
@@ -576,6 +602,7 @@ export function PronunciationGame({
 
     // Đang nghe thật sự → bấm lần nữa = dừng.
     if (isRecordingRef.current || recordPhase === "listening") {
+      userStoppedRef.current = true;
       wantListeningRef.current = false;
       softRestartRef.current = false;
       clearRestartTimer();
@@ -595,7 +622,7 @@ export function PronunciationGame({
       return;
     }
 
-    // Đang khởi động / soft-restart — bỏ qua touch+click trùng (tránh start rồi stop → aborted).
+    // Đang khởi động — bỏ qua touch+click trùng (tránh start rồi stop → aborted).
     if (
       wantListeningRef.current ||
       recordGestureLockRef.current ||
@@ -607,23 +634,25 @@ export function PronunciationGame({
 
     if (recordPhase !== "idle") return;
 
-    // Khóa đồng bộ NGAY — chặn touch+click double-fire (nguyên nhân aborted phổ biến).
+    // Khóa đồng bộ NGAY — chặn touch+click double-fire.
     recordGestureLockRef.current = true;
     wantListeningRef.current = true;
     softRestartRef.current = false;
     softRestartCountRef.current = 0;
     gotResultRef.current = false;
+    sessionStartedRef.current = false;
+    userStoppedRef.current = false;
     lastErrorRef.current = null;
     clearRestartTimer();
 
     stopPromptAudio();
     stopWordAudio();
-    // Đóng AudioContext phát âm trước khi mở mic (iOS hay aborted nếu còn context sống).
+    // Đóng AudioContext phát âm trước khi mở mic.
     releasePromptAudioContext();
-    // Đồng bộ trong lần bấm — tuyệt đối không await trước recognition.start().
+    // iOS: đóng Web Audio (không suspend). Desktop: suspend SFX.
     prepareAudioSessionForSpeech();
-    suspendGameSfxContext();
     if (!iosDevice) {
+      suspendGameSfxContext();
       suspendAudioContext(promptAudioContextRef.current);
     }
 
@@ -672,32 +701,45 @@ export function PronunciationGame({
     setStatus("Lắng nghe thật kỹ nhé! 👂");
     setStatusType("info");
 
-    const play = () => {
-      void playPromptAudio(currentWord)
-        .then(() => {
-          setIsSpeaking(false);
-          setStatus("Nhấn 'Ghi âm' và đọc theo nào!");
+    const afterPlay = () => {
+      setIsSpeaking(false);
+      setStatus("Nhấn 'Ghi âm' và đọc theo nào!");
+      setStatusType("info");
+      // iOS: nhả Web Audio ngay sau khi nghe xong, trước khi user bấm Ghi âm.
+      if (iosDevice) {
+        releasePromptAudioContext();
+        releaseWebAudioForSpeech();
+      }
+    };
+
+    const playHtmlAudio = () => {
+      playWordAudio(currentWord, audioContext, {
+        onStart: () => {
+          setIsSpeaking(true);
+          setStatus("Lắng nghe thật kỹ nhé! 👂");
           setStatusType("info");
-        })
+        },
+        onEnd: afterPlay,
+        onError: () => {
+          setIsSpeaking(false);
+          setStatus("Chưa có file âm thanh cho từ này.");
+          setStatusType("warning");
+        },
+      });
+    };
+
+    const play = () => {
+      // iOS: tránh Web Audio cho prompt — AudioContext sống dễ làm SpeechRecognition aborted.
+      if (iosDevice) {
+        playHtmlAudio();
+        return;
+      }
+
+      void playPromptAudio(currentWord)
+        .then(afterPlay)
         .catch(() => {
           setIsSpeaking(false);
-          playWordAudio(currentWord, audioContext, {
-            onStart: () => {
-              setIsSpeaking(true);
-              setStatus("Lắng nghe thật kỹ nhé! 👂");
-              setStatusType("info");
-            },
-            onEnd: () => {
-              setIsSpeaking(false);
-              setStatus("Nhấn 'Ghi âm' và đọc theo nào!");
-              setStatusType("info");
-            },
-            onError: () => {
-              setIsSpeaking(false);
-              setStatus("Chưa có file âm thanh cho từ này.");
-              setStatusType("warning");
-            },
-          });
+          playHtmlAudio();
         });
     };
 
@@ -720,7 +762,14 @@ export function PronunciationGame({
     }
 
     play();
-  }, [audioContext, currentWord, iosDevice, isSpeaking, playPromptAudio]);
+  }, [
+    audioContext,
+    currentWord,
+    iosDevice,
+    isSpeaking,
+    playPromptAudio,
+    releasePromptAudioContext,
+  ]);
 
   const handleNext = useCallback(() => {
     if (currentIndex >= playWords.length - 1) {
@@ -734,11 +783,13 @@ export function PronunciationGame({
       }
       return;
     }
-    playGameSfx("levelComplete");
+    if (!iosDevice) {
+      playGameSfx("levelComplete");
+    }
     setCurrentIndex((prev) => prev + 1);
     setStatus("Nhấn 'Nghe từ' để tiếp tục học từ mới!");
     setStatusType("info");
-  }, [completed, currentIndex, onComplete, score, playWords.length]);
+  }, [completed, currentIndex, onComplete, score, playWords.length, iosDevice]);
 
   const handleReset = useCallback(() => {
     setPlayWords(shuffleArray(words));

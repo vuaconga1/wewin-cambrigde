@@ -38,6 +38,14 @@ export function resumeGameSfxContext() {
   }
 }
 
+/** Đóng hẳn context — iOS cần nhả audio session trước SpeechRecognition. */
+export function closeGameSfxContext() {
+  const ctx = sharedCtx;
+  sharedCtx = null;
+  if (!ctx || ctx.state === "closed") return;
+  void ctx.close().catch(() => {});
+}
+
 function getContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
 

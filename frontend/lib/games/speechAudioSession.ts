@@ -3,7 +3,11 @@ import {
   readStoredBgmSettings,
   tryStartBgmPlayback,
 } from "@/app/components/audio/bgmEngine";
-import { suspendClickSoundContext } from "@/app/components/layouts/clickSound";
+import {
+  closeClickSoundContext,
+  suspendClickSoundContext,
+} from "@/app/components/layouts/clickSound";
+import { closeGameSfxContext } from "@/app/utils/gameSfx";
 import { stopVoiceSfx } from "@/app/utils/voiceSfx";
 import { stopWordAudio } from "@/app/utils/playWordAudio";
 
@@ -36,14 +40,29 @@ export function isEmbeddedFrame(): boolean {
   }
 }
 
-/** Tạm dừng mọi audio app-level trước khi mở mic (đồng bộ, giữ user gesture). */
+/**
+ * Tạm dừng mọi audio app-level trước khi mở mic (đồng bộ, giữ user gesture).
+ * iOS: đóng hẳn Web Audio (không suspend) — suspend hay làm SpeechRecognition aborted.
+ */
 export function prepareAudioSessionForSpeech() {
   const settings = readStoredBgmSettings();
   resumeBgmAfterSpeech = !settings.muted && settings.volume > 0;
   pauseSharedAudio();
   stopWordAudio();
   stopVoiceSfx();
-  suspendClickSoundContext();
+  releaseWebAudioForSpeech();
+}
+
+/** Chỉ nhả Web Audio — không đụng cờ resume BGM. */
+export function releaseWebAudioForSpeech() {
+  stopWordAudio();
+  stopVoiceSfx();
+  if (isIosDevice()) {
+    closeClickSoundContext();
+    closeGameSfxContext();
+  } else {
+    suspendClickSoundContext();
+  }
 }
 
 export type MicPermissionResult = "granted" | "denied" | "unsupported";

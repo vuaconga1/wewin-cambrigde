@@ -51,6 +51,14 @@ export function resumeClickSoundContext() {
   }
 }
 
+/** Đóng hẳn context — iOS cần nhả audio session trước SpeechRecognition. */
+export function closeClickSoundContext() {
+  const ctx = sharedAudioContext;
+  sharedAudioContext = null;
+  if (!ctx || ctx.state === "closed") return;
+  void ctx.close().catch(() => {});
+}
+
 function isDisabledInteractive(element: Element) {
   return (
     element.closest("[data-no-click-sound='true']") !== null ||
