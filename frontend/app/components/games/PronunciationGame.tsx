@@ -496,7 +496,9 @@ export function PronunciationGame({
       }
 
       const wasListening = isRecordingRef.current;
-      const wasAborted = lastErrorRef.current === "aborted" && !userStoppedRef.current;
+      const wasAborted =
+        lastErrorRef.current === "aborted" && !userStoppedRef.current;
+      const userStopped = userStoppedRef.current;
 
       wantListeningRef.current = false;
       softRestartRef.current = false;
@@ -505,11 +507,9 @@ export function PronunciationGame({
 
       if (gotResultRef.current) {
         // Status đã set bởi checkPronunciation — không ghi đè.
-      } else if (userStoppedRef.current) {
-        // User bấm Dừng — không báo lỗi.
       } else if (wasAborted) {
         setStatus(
-          "Safari hủy micro (xung đột âm thanh). Tắt nhạc nền (🔊), đợi 1 giây rồi bấm Ghi âm lại.",
+          "Trình duyệt hủy micro (xung đột âm thanh). Tắt nhạc nền (🔊), đợi 1 giây rồi bấm Ghi âm lại.",
         );
         setStatusType("warning");
         speedTimer.reset();
@@ -522,14 +522,17 @@ export function PronunciationGame({
         );
         setStatusType("warning");
         speedTimer.reset();
-      } else if (wasListening) {
-        setRecordPhase("processing");
-        setStatus("Đang xử lý giọng nói...");
+      } else if (userStopped || wasListening) {
+        // Dừng khi chưa có transcript — không để kẹt "Đang xử lý...".
+        setStatus("Chưa nghe thấy giọng nói. Bấm Ghi âm và đọc to hơn nhé!");
+        setStatusType("warning");
+        speedTimer.reset();
       } else {
         setStatus(
-          "Safari hủy ghi âm sớm. Hãy tắt nhạc nền (🔊) rồi bấm Ghi âm lại.",
+          "Ghi âm bị hủy sớm. Hãy tắt nhạc nền (🔊) rồi bấm Ghi âm lại.",
         );
         setStatusType("warning");
+        speedTimer.reset();
       }
       userStoppedRef.current = false;
       stopRecording();
@@ -619,10 +622,16 @@ export function PronunciationGame({
           recognitionRef.current.stop();
         } catch {
           finishSpeechSession();
+          setStatus("Chưa nghe thấy giọng nói. Bấm Ghi âm và đọc to hơn nhé!");
+          setStatusType("warning");
+          speedTimer.reset();
           stopRecording();
         }
       } else {
         finishSpeechSession();
+        setStatus("Chưa nghe thấy giọng nói. Bấm Ghi âm và đọc to hơn nhé!");
+        setStatusType("warning");
+        speedTimer.reset();
         stopRecording();
       }
       return;
@@ -679,6 +688,7 @@ export function PronunciationGame({
     finishSpeechSession,
     stopRecording,
     clearRestartTimer,
+    speedTimer,
   ]);
 
   useEffect(() => {
