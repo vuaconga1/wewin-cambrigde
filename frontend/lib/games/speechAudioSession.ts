@@ -10,14 +10,21 @@ import { stopWordAudio } from "@/app/utils/playWordAudio";
 let resumeBgmAfterSpeech = false;
 let micWarmupDone = false;
 
+/** Mọi trình duyệt trên iPhone/iPad (Safari + Chrome/Firefox/Edge — đều dùng WebKit). */
+export function isIosDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  return (
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
+
 export function isIosSafari(): boolean {
   if (typeof navigator === "undefined") return false;
   const ua = navigator.userAgent;
-  const isIOS =
-    /iPad|iPhone|iPod/.test(ua) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|Chrome/.test(ua);
-  return isIOS && isSafari;
+  return isIosDevice() && isSafari;
 }
 
 export function isEmbeddedFrame(): boolean {
