@@ -12,9 +12,12 @@ RUN pnpm install --frozen-lockfile
 COPY backend/ ./
 RUN rm -f pnpm-workspace.yaml \
   && pnpm run build \
-  && pnpm prune --prod
+  && pnpm prune --prod \
+  && rm -rf src \
+  && cp -r dist src
 
 ENV NODE_ENV=production
+ENV NODE_PATH=/app
 
 EXPOSE 8080
 

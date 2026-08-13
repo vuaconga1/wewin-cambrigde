@@ -53,6 +53,9 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, document);
 
   const PORT = Number(process.env.PORT) || 8000;
+  console.log(
+    `Starting WeWIN API on 0.0.0.0:${PORT} (db=${Boolean(process.env.DATABASE_URL)})`,
+  );
   await app.listen(PORT, '0.0.0.0');
   console.log(`WeWIN API listening on 0.0.0.0:${PORT}`);
 }

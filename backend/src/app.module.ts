@@ -15,6 +15,21 @@ import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { GameProgressModule } from './game-progress/game-progress.module';
 import { VocabImagesModule } from './vocab-images/vocab-images.module';
 
+function resolveDatabaseUrl() {
+  const raw = process.env.DATABASE_URL?.trim() ?? '';
+  if (!raw) return raw;
+  try {
+    const parsed = new URL(raw);
+    parsed.searchParams.delete('channel_binding');
+    if (!parsed.searchParams.has('sslmode')) {
+      parsed.searchParams.set('sslmode', 'require');
+    }
+    return parsed.toString();
+  } catch {
+    return raw.replace(/[&?]channel_binding=[^&]*/g, '');
+  }
+}
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -22,10 +37,14 @@ import { VocabImagesModule } from './vocab-images/vocab-images.module';
     }),
     TypeOrmModule.forRoot({
       type: 'postgres',
-      url: process.env.DATABASE_URL,
+      url: resolveDatabaseUrl(),
       autoLoadEntities: true,
       synchronize: process.env.NODE_ENV !== 'production',
-      ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }, // SSL nếu là Neon/cloud, bỏ qua nếu local
+      ssl: process.env.DATABASE_URL?.includes('localhost')
+        ? false
+        : { rejectUnauthorized: false },
+      retryAttempts: 10,
+      retryDelay: 3000,
     }),
     UserModule,
     RoleModule,
