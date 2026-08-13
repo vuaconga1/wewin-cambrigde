@@ -2,9 +2,11 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-RUN corepack enable
+RUN apk add --no-cache python3 make g++ \
+  && corepack enable \
+  && corepack prepare pnpm@9.15.9 --activate
 
-COPY backend/package.json backend/pnpm-lock.yaml ./
+COPY backend/package.json backend/pnpm-lock.yaml backend/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY backend/ ./
