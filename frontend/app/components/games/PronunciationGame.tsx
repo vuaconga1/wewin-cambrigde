@@ -14,6 +14,10 @@ import { playWordAudio, stopWordAudio } from "@/app/utils/playWordAudio";
 import { resumeClickSoundContext } from "@/app/components/layouts/clickSound";
 import { isPronunciationMatch } from "@/lib/games/pronunciationMatch";
 import {
+  startMicRecording,
+  transcribeRecordedClip,
+} from "@/lib/games/recordAudio";
+import {
   hasWarmedUpMic,
   isEmbeddedFrame,
   isIosDevice,
@@ -78,6 +82,11 @@ export function PronunciationGame({
     "info",
   );
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const micSessionRef = useRef<{
+    stop: () => void;
+    cancel: () => void;
+    done: Promise<{ blob: Blob; mimeType: string }>;
+  } | null>(null);
   /** Tăng mỗi lần start mới — bỏ qua onend/onerror của instance cũ. */
   const recognitionGenRef = useRef(0);
   const isRecordingRef = useRef(false);
@@ -145,7 +154,7 @@ export function PronunciationGame({
     currentWordRef.current = currentWord;
   }, [currentWord]);
 
-  /** Chỉ Web Speech API (SpeechRecognition / webkitSpeechRecognition). */
+  /** Desktop/Android: Web Speech. iOS: MediaRecorder + Groq. */
   const hasSpeechRecognition = useMemo(
     () =>
       typeof window !== "undefined" &&
@@ -154,8 +163,16 @@ export function PronunciationGame({
   );
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (iosDevice) {
+      setIsSupported(
+        typeof MediaRecorder !== "undefined" &&
+          Boolean(navigator.mediaDevices?.getUserMedia),
+      );
+      return;
+    }
     setIsSupported(hasSpeechRecognition);
-  }, [hasSpeechRecognition]);
+  }, [hasSpeechRecognition, iosDevice]);
 
   const getPromptAudioContext = useCallback(() => {
     if (typeof window === "undefined") return null;
@@ -303,17 +320,11 @@ export function PronunciationGame({
   }, []);
 
   const finishSpeechSession = useCallback(() => {
-    // iOS: giữ audio session trống đến khi rời game — đừng bật lại BGM/WebAudio
-    // giữa các lần Ghi âm (HTMLAudio + AudioContext làm recognition aborted ngay).
-    if (iosDevice) {
-      releaseWebAudioForSpeech();
-      return;
-    }
     restoreAudioSessionAfterSpeech();
     resumeAudioContext(promptAudioContextRef.current);
     resumeGameSfxContext();
     resumeClickSoundContext();
-  }, [iosDevice]);
+  }, []);
 
   const beginRecordingUI = useCallback(() => {
     setIsRecording(true);
@@ -638,10 +649,74 @@ export function PronunciationGame({
 
   startRecognitionRef.current = startRecognition;
 
+  const startIosRecording = useCallback(async () => {
+    beginRecordingUI();
+    setMicDebug("getUserMedia + MediaRecorder…");
+    try {
+      const session = await startMicRecording(8000);
+      if (!wantListeningRef.current) {
+        session.cancel();
+        return;
+      }
+      micSessionRef.current = session;
+      isRecordingRef.current = true;
+      setIsRecording(true);
+      setRecordPhase("listening");
+      speedTimer.start();
+      setStatus("Đang nghe... Đọc to và rõ ràng nhé! 🗣️");
+      setStatusType("info");
+      setMicDebug("MediaRecorder recording");
+
+      void session.done
+        .then(async (clip) => {
+          if (micSessionRef.current !== session) return;
+          micSessionRef.current = null;
+          setRecordPhase("processing");
+          setStatus("Đang xử lý giọng nói...");
+          setMicDebug(`clip ${Math.round(clip.blob.size / 1024)}KB → Groq`);
+          const word = currentWordRef.current?.text;
+          if (!word) {
+            finishSpeechSession();
+            stopRecording();
+            return;
+          }
+          const transcript = await transcribeRecordedClip(clip);
+          setMicDebug(`transcript: "${transcript}"`);
+          checkPronunciationRef.current(transcript, word);
+          finishSpeechSession();
+          stopRecording();
+        })
+        .catch((err: unknown) => {
+          if (micSessionRef.current === session) micSessionRef.current = null;
+          const message =
+            err instanceof Error ? err.message : "Không ghi được âm thanh";
+          if (message === "Đã hủy ghi âm") {
+            finishSpeechSession();
+            stopRecording();
+            return;
+          }
+          finishSpeechSession();
+          setStatus(message);
+          setStatusType("warning");
+          speedTimer.reset();
+          stopRecording();
+        });
+    } catch {
+      finishSpeechSession();
+      setStatus(
+        "Safari chưa cho phép micro. Vào Cài đặt > Safari > Micro và bật cho trang này.",
+      );
+      setStatusType("warning");
+      stopRecording();
+    }
+  }, [beginRecordingUI, finishSpeechSession, stopRecording, speedTimer]);
+
   const handleRecord = useCallback(async () => {
     if (!isSupported) {
       alert(
-        "Trình duyệt chưa hỗ trợ Web Speech API. Hãy dùng Safari (iPhone), Chrome hoặc Edge nhé!",
+        iosDevice
+          ? "Trình duyệt chưa hỗ trợ ghi âm. Hãy dùng Safari trên iPhone nhé!"
+          : "Trình duyệt chưa hỗ trợ Web Speech API. Hãy dùng Chrome hoặc Edge nhé!",
       );
       return;
     }
@@ -661,6 +736,13 @@ export function PronunciationGame({
       softRestartRef.current = false;
       clearRestartTimer();
       armRecordGestureLock();
+
+      if (iosDevice && micSessionRef.current) {
+        setRecordPhase("processing");
+        setStatus("Đang xử lý giọng nói...");
+        micSessionRef.current.stop();
+        return;
+      }
 
       if (recognitionRef.current) {
         setRecordPhase("processing");
@@ -714,26 +796,12 @@ export function PronunciationGame({
       suspendAudioContext(promptAudioContextRef.current);
     }
 
-    beginRecordingUI();
-
-    if (iosDevice && !hasWarmedUpMic()) {
-      setMicDebug("warming up mic…");
-      const result = await warmupMicPermission();
-      if (!wantListeningRef.current) return;
-      if (result === "denied") {
-        finishSpeechSession();
-        setStatus(
-          "Safari chưa cho phép micro. Vào Cài đặt > Safari > Micro và bật cho trang này.",
-        );
-        setStatusType("warning");
-        stopRecording();
-        return;
-      }
-      setMicDebug("mic warmup ok → recognition.start()");
-      startRecognition();
+    if (iosDevice) {
+      await startIosRecording();
       return;
     }
 
+    beginRecordingUI();
     setMicDebug("starting → recognition.start()");
     startRecognition();
   }, [
@@ -742,6 +810,7 @@ export function PronunciationGame({
     recordPhase,
     iosDevice,
     beginRecordingUI,
+    startIosRecording,
     startRecognition,
     stopPromptAudio,
     releasePromptAudioContext,
@@ -753,19 +822,13 @@ export function PronunciationGame({
   ]);
 
   useEffect(() => {
-    if (!iosDevice) return;
-    prepareAudioSessionForSpeech();
-    return () => {
-      restoreAudioSessionAfterSpeech();
-    };
-  }, [iosDevice]);
-
-  useEffect(() => {
     return () => {
       wantListeningRef.current = false;
       softRestartRef.current = false;
       recordGestureLockRef.current = false;
       recognitionGenRef.current += 1;
+      micSessionRef.current?.cancel();
+      micSessionRef.current = null;
       if (restartTimerRef.current != null) {
         window.clearTimeout(restartTimerRef.current);
         restartTimerRef.current = null;
@@ -907,7 +970,7 @@ export function PronunciationGame({
 
         {!isSupported && (
           <div className="mt-4 rounded-lg bg-red-100 p-3 text-center text-sm sm:text-base text-red-700">
-            ⚠️ Trình duyệt không hỗ trợ Web Speech API. Hãy dùng Safari (iPhone),
+            ⚠️ Trình duyệt không hỗ trợ ghi âm. iPhone dùng Safari; máy tính dùng
             Chrome hoặc Edge nhé!
           </div>
         )}
@@ -924,8 +987,8 @@ export function PronunciationGame({
           <ol className="mt-2 list-decimal list-inside space-y-1">
             <li>Nhấn &quot;Nghe từ&quot; để nghe phát âm chuẩn.</li>
             <li>
-              Nhấn &quot;Ghi âm&quot; và đọc theo — dùng Web Speech trên Safari
-              (iPhone) hoặc Chrome/Edge.
+              Nhấn &quot;Ghi âm&quot; và đọc theo. iPhone: thu âm rồi nhận dạng;
+              máy tính: Web Speech (Chrome/Edge).
             </li>
             <li>Nhận phản hồi và chuyển sang từ mới!</li>
           </ol>
