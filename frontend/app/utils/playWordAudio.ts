@@ -41,9 +41,19 @@ function buildCandidateUrls(
 
 export function stopWordAudio(): void {
   if (!activeAudio) return;
-  activeAudio.pause();
-  activeAudio.currentTime = 0;
+  const audio = activeAudio;
   activeAudio = null;
+  audio.onplay = null;
+  audio.onended = null;
+  audio.onerror = null;
+  audio.pause();
+  try {
+    audio.currentTime = 0;
+  } catch {
+    // ignore
+  }
+  audio.removeAttribute("src");
+  audio.load();
 }
 
 export function playWordAudio(

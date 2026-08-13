@@ -11,9 +11,16 @@ let activeVoice: HTMLAudioElement | null = null;
 
 export function stopVoiceSfx() {
   if (!activeVoice) return;
-  activeVoice.pause();
-  activeVoice.currentTime = 0;
+  const audio = activeVoice;
   activeVoice = null;
+  audio.pause();
+  try {
+    audio.currentTime = 0;
+  } catch {
+    // ignore
+  }
+  audio.removeAttribute("src");
+  audio.load();
 }
 
 /** Giọng trẻ em / nhóm trẻ — dùng cho đúng & sai thay tiếng beep. */

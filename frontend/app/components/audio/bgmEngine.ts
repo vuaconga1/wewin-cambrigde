@@ -10,6 +10,7 @@ import {
 let sharedAudio: HTMLAudioElement | null = null;
 let sharedTrackSrc: string | null = null;
 let autoplayBound = false;
+let speechHoldActive = false;
 const loopBound = new WeakSet<HTMLAudioElement>();
 
 /** Đảm bảo nhạc nền lặp lại khi hết bài (loop + fallback ended). */
@@ -26,7 +27,7 @@ function ensureBgmLoop(audio: HTMLAudioElement) {
   audio.addEventListener("canplaythrough", markLoopReady);
 
   audio.addEventListener("ended", () => {
-    if (audio.muted) return;
+    if (speechHoldActive || audio.muted) return;
     audio.currentTime = 0;
     void audio.play().catch(() => {});
   });
@@ -54,6 +55,18 @@ export function getSharedAudio(src: string) {
 
 export function pauseSharedAudio() {
   sharedAudio?.pause();
+}
+
+/** Chặn BGM tự phát khi đang giữ audio session cho SpeechRecognition (iOS). */
+export function setSpeechAudioHold(active: boolean) {
+  speechHoldActive = active;
+  if (active) {
+    stopSharedAudio();
+  }
+}
+
+export function isSpeechAudioHoldActive() {
+  return speechHoldActive;
 }
 
 /** Dừng hẳn — chỉ khi đổi bài hoặc reset player. */
@@ -97,6 +110,7 @@ export function writeStoredBgmSettings(settings: BgmSettings) {
 }
 
 export function applyBgmSettings(next: BgmSettings) {
+  if (speechHoldActive) return;
   const track = getBgmTrack(next.trackId);
   const audio = getSharedAudio(track.src);
   if (!audio) return;
@@ -115,6 +129,10 @@ function bindAutoplayUnlock(onPlay: () => void) {
   };
 
   const unlock = () => {
+    if (speechHoldActive) {
+      autoplayBound = false;
+      return;
+    }
     tryPlay();
     window.removeEventListener("pointerdown", unlock);
     window.removeEventListener("keydown", unlock);
@@ -127,6 +145,8 @@ function bindAutoplayUnlock(onPlay: () => void) {
 export async function tryStartBgmPlayback(
   trackId: BgmTrackId,
 ): Promise<"playing" | "blocked" | "muted"> {
+  if (speechHoldActive) return "muted";
+
   const track = getBgmTrack(trackId);
   const audio = getSharedAudio(track.src);
   if (!audio || audio.muted) return "muted";

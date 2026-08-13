@@ -1,6 +1,7 @@
 import {
-  pauseSharedAudio,
   readStoredBgmSettings,
+  setSpeechAudioHold,
+  stopSharedAudio,
   tryStartBgmPlayback,
 } from "@/app/components/audio/bgmEngine";
 import {
@@ -47,7 +48,10 @@ export function isEmbeddedFrame(): boolean {
 export function prepareAudioSessionForSpeech() {
   const settings = readStoredBgmSettings();
   resumeBgmAfterSpeech = !settings.muted && settings.volume > 0;
-  pauseSharedAudio();
+  // iOS: pause() vẫn giữ audio session → SpeechRecognition aborted ngay.
+  // Phải unload hẳn HTMLAudioElement (BGM + prompt + SFX).
+  setSpeechAudioHold(true);
+  stopSharedAudio();
   stopWordAudio();
   stopVoiceSfx();
   releaseWebAudioForSpeech();
@@ -114,6 +118,7 @@ export function releaseMicStream(stream: MediaStream | null | undefined) {
 }
 
 export function restoreAudioSessionAfterSpeech() {
+  setSpeechAudioHold(false);
   if (!resumeBgmAfterSpeech) return;
   resumeBgmAfterSpeech = false;
   const settings = readStoredBgmSettings();
