@@ -13,6 +13,8 @@ export function stopVoiceSfx() {
   if (!activeVoice) return;
   const audio = activeVoice;
   activeVoice = null;
+  audio.muted = true;
+  audio.volume = 0;
   audio.pause();
   try {
     audio.currentTime = 0;
@@ -20,6 +22,7 @@ export function stopVoiceSfx() {
     // ignore
   }
   audio.removeAttribute("src");
+  audio.src = "";
   audio.load();
 }
 

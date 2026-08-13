@@ -10,7 +10,10 @@ import {
 } from "@/app/components/layouts/clickSound";
 import { closeGameSfxContext } from "@/app/utils/gameSfx";
 import { stopVoiceSfx } from "@/app/utils/voiceSfx";
-import { stopWordAudio } from "@/app/utils/playWordAudio";
+import {
+  silenceHtmlMediaForMic,
+  stopWordAudio,
+} from "@/app/utils/playWordAudio";
 
 let resumeBgmAfterSpeech = false;
 let micWarmupDone = false;
@@ -54,6 +57,7 @@ export function prepareAudioSessionForSpeech() {
   stopSharedAudio();
   stopWordAudio();
   stopVoiceSfx();
+  silenceHtmlMediaForMic();
   releaseWebAudioForSpeech();
 }
 

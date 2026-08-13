@@ -1,3 +1,5 @@
+import { silenceHtmlMediaForMic } from "@/app/utils/playWordAudio";
+
 export type RecordedClip = {
   blob: Blob;
   mimeType: string;
@@ -27,7 +29,11 @@ async function openMicStream(): Promise<MediaStream> {
   if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
     throw new Error("Trình duyệt không hỗ trợ ghi âm");
   }
-  return navigator.mediaDevices.getUserMedia(MIC_AUDIO_CONSTRAINTS);
+  silenceHtmlMediaForMic();
+  const stream = await navigator.mediaDevices.getUserMedia(MIC_AUDIO_CONSTRAINTS);
+  // iOS resumes the last HTMLAudio during getUserMedia — kill it again.
+  silenceHtmlMediaForMic();
+  return stream;
 }
 
 /**

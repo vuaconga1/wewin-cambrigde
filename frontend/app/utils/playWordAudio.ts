@@ -7,6 +7,7 @@ type PlayHooks = {
 };
 
 let activeAudio: HTMLAudioElement | null = null;
+const liveAudios = new Set<HTMLAudioElement>();
 
 function normalizeMediaUrl(url: string): string {
   if (url.startsWith("//")) return `https:${url}`;
@@ -39,21 +40,58 @@ function buildCandidateUrls(
   return urls;
 }
 
-export function stopWordAudio(): void {
-  if (!activeAudio) return;
-  const audio = activeAudio;
-  activeAudio = null;
+function destroyAudio(audio: HTMLAudioElement) {
   audio.onplay = null;
   audio.onended = null;
   audio.onerror = null;
-  audio.pause();
+  audio.muted = true;
+  audio.volume = 0;
+  try {
+    audio.pause();
+  } catch {
+    // ignore
+  }
   try {
     audio.currentTime = 0;
   } catch {
     // ignore
   }
   audio.removeAttribute("src");
-  audio.load();
+  audio.src = "";
+  try {
+    audio.load();
+  } catch {
+    // ignore
+  }
+  liveAudios.delete(audio);
+}
+
+export function stopWordAudio(): void {
+  if (activeAudio) {
+    destroyAudio(activeAudio);
+    activeAudio = null;
+  }
+  for (const audio of [...liveAudios]) {
+    destroyAudio(audio);
+  }
+}
+
+/**
+ * iOS: getUserMedia đổi audio session → HTMLAudio đã phát (kể cả đã ended)
+ * tự play lại. Gọi trước VÀ ngay sau khi xin mic.
+ */
+export function silenceHtmlMediaForMic(): void {
+  stopWordAudio();
+  if (typeof document === "undefined") return;
+  document.querySelectorAll("audio, video").forEach((el) => {
+    const media = el as HTMLMediaElement;
+    media.muted = true;
+    try {
+      media.pause();
+    } catch {
+      // ignore
+    }
+  });
 }
 
 export function playWordAudio(
@@ -80,23 +118,29 @@ export function playWordAudio(
     }
 
     const audio = new Audio(urls[index]);
+    audio.preload = "auto";
+    liveAudios.add(audio);
     activeAudio = audio;
 
     audio.onplay = () => {
+      if (activeAudio !== audio) return;
       hooks?.onStart?.();
     };
 
     audio.onended = () => {
+      destroyAudio(audio);
       if (activeAudio === audio) activeAudio = null;
       hooks?.onEnd?.();
     };
 
     audio.onerror = () => {
+      destroyAudio(audio);
       if (activeAudio === audio) activeAudio = null;
       tryAt(index + 1);
     };
 
     void audio.play().catch(() => {
+      destroyAudio(audio);
       if (activeAudio === audio) activeAudio = null;
       tryAt(index + 1);
     });
