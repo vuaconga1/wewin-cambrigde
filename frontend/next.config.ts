@@ -15,6 +15,30 @@ const FRAME_ANCESTORS = [
 ].join(" ");
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/games/starters",
+        destination: "/games/starters/hello-unit",
+        permanent: false,
+      },
+      {
+        source: "/games/movers",
+        destination: "/games/movers/unit-1-at-the-park",
+        permanent: false,
+      },
+      {
+        source: "/games/kids",
+        destination: "/games/kids/my-future-career-fair",
+        permanent: false,
+      },
+      {
+        source: "/games/flyers",
+        destination: "/games/flyers/unit-0-hello",
+        permanent: false,
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       {

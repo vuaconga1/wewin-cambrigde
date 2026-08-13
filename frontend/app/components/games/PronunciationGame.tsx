@@ -18,7 +18,6 @@ import {
   transcribeRecordedClip,
 } from "@/lib/games/recordAudio";
 import {
-  hasWarmedUpMic,
   isEmbeddedFrame,
   isIosDevice,
   prepareAudioSessionForSpeech,
@@ -26,7 +25,6 @@ import {
   restoreAudioSessionAfterSpeech,
   resumeAudioContext,
   suspendAudioContext,
-  warmupMicPermission,
 } from "@/lib/games/speechAudioSession";
 import { WordVisual } from "@/app/components/games/WordVisual";
 import {
@@ -854,10 +852,10 @@ export function PronunciationGame({
       setIsSpeaking(false);
       setStatus("Nhấn 'Ghi âm' và đọc theo nào!");
       setStatusType("info");
-      // iOS: nhả Web Audio ngay sau khi nghe xong, trước khi user bấm Ghi âm.
       if (iosDevice) {
         releasePromptAudioContext();
         releaseWebAudioForSpeech();
+        stopWordAudio();
       }
     };
 
@@ -877,40 +875,21 @@ export function PronunciationGame({
       });
     };
 
-    const play = () => {
-      // iOS: tránh Web Audio cho prompt — AudioContext sống dễ làm SpeechRecognition aborted.
-      if (iosDevice) {
-        playHtmlAudio();
-        return;
-      }
-
-      void playPromptAudio(currentWord)
-        .then(afterPlay)
-        .catch(() => {
+    // iOS: không dùng HTMLAudio cho prompt — getUserMedia sẽ phát lại file mp3.
+    // Web Audio (decode + BufferSource) không bị Safari resume khi mở mic.
+    void playPromptAudio(currentWord)
+      .then(afterPlay)
+      .catch(() => {
+        if (iosDevice) {
           setIsSpeaking(false);
-          playHtmlAudio();
-        });
-    };
-
-    // Warm-up trên gesture "Nghe từ": xin quyền rồi stop track ngay.
-    // Phải xong trước khi phát âm để không còn MediaStream khi bấm Ghi âm.
-    if (iosDevice && !hasWarmedUpMic()) {
-      void warmupMicPermission().then((result) => {
-        setMicDebug(`mic-warmup: ${result}`);
-        if (result === "denied") {
-          setIsSpeaking(false);
-          setStatus(
-            "Safari chưa cho phép micro. Vào Cài đặt > Safari > Micro và bật cho trang này.",
-          );
+          setStatus("Chưa có file âm thanh cho từ này.");
           setStatusType("warning");
+          releasePromptAudioContext();
           return;
         }
-        play();
+        setIsSpeaking(false);
+        playHtmlAudio();
       });
-      return;
-    }
-
-    play();
   }, [
     audioContext,
     currentWord,
