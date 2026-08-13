@@ -16,6 +16,7 @@ async function bootstrap() {
     'https://wewin-game.vercel.app',
     'https://wewin-cambrigde.vercel.app',
     'https://wewin-cambridge.vercel.app',
+    'https://cambrigde.wewin.edu.vn',
     ...(process.env.CORS_ORIGINS
       ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim())
       : []),
@@ -26,6 +27,9 @@ async function bootstrap() {
       if (!origin) return callback(null, true);
       if (corsOrigins.includes(origin)) return callback(null, true);
       if (/^https:\/\/([\w-]+\.)*vercel\.app$/.test(origin)) {
+        return callback(null, true);
+      }
+      if (/^https:\/\/([\w-]+\.)*wewin\.edu\.vn$/.test(origin)) {
         return callback(null, true);
       }
       return callback(null, false);

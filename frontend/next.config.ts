@@ -3,6 +3,8 @@ import type { NextConfig } from "next";
 /** Parent portals allowed to embed WeWIN games via iframe */
 const FRAME_ANCESTORS = [
   "'self'",
+  "https://wewin.edu.vn",
+  "https://*.wewin.edu.vn",
   "https://wewin.baobai.edu.vn",
   // Bản copy đang test chạy trên Google Apps Script (nội dung render trong iframe
   // của Google). Cho phép các domain này để nhúng iframe khi test trên GAS.
