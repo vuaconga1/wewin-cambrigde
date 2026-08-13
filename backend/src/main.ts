@@ -10,16 +10,26 @@ async function bootstrap() {
 
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  const corsOrigins = process.env.CORS_ORIGINS
-    ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim())
-    : [
-        'http://localhost:3000',
-        'https://wewin-education.vercel.app',
-        'https://wewin-game.vercel.app',
-      ];
+  const corsOrigins = [
+    'http://localhost:3000',
+    'https://wewin-education.vercel.app',
+    'https://wewin-game.vercel.app',
+    'https://wewin-cambrigde.vercel.app',
+    'https://wewin-cambridge.vercel.app',
+    ...(process.env.CORS_ORIGINS
+      ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim())
+      : []),
+  ];
 
   app.enableCors({
-    origin: corsOrigins,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (corsOrigins.includes(origin)) return callback(null, true);
+      if (/^https:\/\/([\w-]+\.)*vercel\.app$/.test(origin)) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

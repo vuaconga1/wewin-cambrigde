@@ -22,12 +22,12 @@ export function ApiConnectionError({
   const remote = isRemoteApi();
   const resolvedTitle =
     title ??
-    (remote ? "Máy chủ đang khởi động" : "Không kết nối được máy chủ");
+    "Không kết nối được máy chủ";
   const resolvedMessage =
     message ??
     (remote
-      ? "Backend trên Render vừa thức dậy sau khi ngủ — lần đầu có thể mất 30–90 giây. Trang sẽ tự thử lại; bạn cũng có thể bấm Thử lại."
-      : "Backend API chưa chạy hoặc sai cổng. Mở terminal tại thư mục backend và chạy: npm run start:dev (mặc định cổng 3001). Sau đó tải lại trang.");
+      ? "Không gọi được backend (CORS, URL API, hoặc máy chủ lỗi). Railway không sleep như Render — nếu trang kẹt mãi, kiểm tra CORS_ORIGINS và NEXT_PUBLIC_API_URL. Bấm Thử lại hoặc đợi trang tự tải lại."
+      : "Backend API chưa chạy hoặc sai cổng. Mở terminal tại thư mục backend và chạy: pnpm start:dev (mặc định cổng 3001). Sau đó tải lại trang.");
 
   const [secondsLeft, setSecondsLeft] = useState(autoRetrySeconds);
 
@@ -52,7 +52,7 @@ export function ApiConnectionError({
   return (
     <div className="min-h-[50vh] flex items-center justify-center px-4">
       <div className="max-w-lg rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center shadow-sm">
-        <div className="text-4xl mb-3">{remote ? "⏳" : "⚠️"}</div>
+        <div className="text-4xl mb-3">⚠️</div>
         <h2 className="text-lg font-bold text-amber-900 mb-2">{resolvedTitle}</h2>
         <p className="text-sm text-amber-800 leading-relaxed">{resolvedMessage}</p>
         <p className="mt-3 text-xs text-amber-700/80">

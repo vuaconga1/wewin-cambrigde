@@ -4,10 +4,9 @@ type RetryConfig = InternalAxiosRequestConfig & {
   _retryCount?: number;
 };
 
-/** Render free tier cold-start thường 30–60s; timeout ngắn sẽ báo lỗi giả. */
-const REQUEST_TIMEOUT_MS = 55_000;
-const MAX_RETRIES = 3;
-const BASE_DELAY_MS = 1_500;
+const REQUEST_TIMEOUT_MS = 20_000;
+const MAX_RETRIES = 2;
+const BASE_DELAY_MS = 1_000;
 
 function isRetryableError(error: AxiosError) {
   if (error.code === "ECONNABORTED") return true;
