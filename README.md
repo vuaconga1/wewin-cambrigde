@@ -1,4 +1,4 @@
-# wewin-game — WeWIN Education Fullstack Platform
+# wewin-cambrigde — WeWIN Education Fullstack Platform
 
 A modern full-stack system for education management, IELTS testing, class management, and student workflows.
 
@@ -10,7 +10,7 @@ This project includes:
 ## Folder Structure
 
 ```
-wewin-game/
+wewin-cambrigde/
 ├── frontend/     # Next.js app (deploy to Vercel)
 ├── backend/      # NestJS API
 └── scripts/
