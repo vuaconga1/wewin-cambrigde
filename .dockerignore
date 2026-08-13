@@ -10,6 +10,7 @@
 !**/.env.example
 !**/.env*.example
 frontend
+backend/pnpm-workspace.yaml
 anh_wewin
 audio_wewin
 **/.turbo
