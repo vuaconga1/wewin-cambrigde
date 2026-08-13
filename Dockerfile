@@ -6,7 +6,7 @@ RUN apk add --no-cache python3 make g++ \
   && corepack enable \
   && corepack prepare pnpm@9.15.9 --activate
 
-COPY backend/package.json backend/pnpm-lock.yaml backend/pnpm-workspace.yaml ./
+COPY backend/package.json backend/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY backend/ ./
