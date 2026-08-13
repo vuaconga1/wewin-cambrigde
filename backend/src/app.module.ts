@@ -24,7 +24,7 @@ import { VocabImagesModule } from './vocab-images/vocab-images.module';
       type: 'postgres',
       url: process.env.DATABASE_URL,
       autoLoadEntities: true,
-      synchronize: true, // Dev = true, production = false
+      synchronize: process.env.NODE_ENV !== 'production',
       ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }, // SSL nếu là Neon/cloud, bỏ qua nếu local
     }),
     UserModule,
