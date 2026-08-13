@@ -844,6 +844,14 @@ export function PronunciationGame({
 
   const handleListen = useCallback(() => {
     if (isSpeaking) return;
+    if (
+      recordPhase !== "idle" ||
+      isRecordingRef.current ||
+      wantListeningRef.current ||
+      recordGestureLockRef.current
+    ) {
+      return;
+    }
     setIsSpeaking(true);
     setStatus("Lắng nghe thật kỹ nhé! 👂");
     setStatusType("info");
@@ -897,9 +905,17 @@ export function PronunciationGame({
     isSpeaking,
     playPromptAudio,
     releasePromptAudioContext,
+    recordPhase,
   ]);
 
   const handleNext = useCallback(() => {
+    if (
+      recordPhase !== "idle" ||
+      isRecordingRef.current ||
+      wantListeningRef.current
+    ) {
+      return;
+    }
     if (currentIndex >= playWords.length - 1) {
       setStatus(
         `🎉 Xuất sắc! Bạn đã hoàn thành tất cả các từ! Tổng điểm: ${score} điểm`,
@@ -917,7 +933,15 @@ export function PronunciationGame({
     setCurrentIndex((prev) => prev + 1);
     setStatus("Nhấn 'Nghe từ' để tiếp tục học từ mới!");
     setStatusType("info");
-  }, [completed, currentIndex, onComplete, score, playWords.length, iosDevice]);
+  }, [
+    completed,
+    currentIndex,
+    onComplete,
+    score,
+    playWords.length,
+    iosDevice,
+    recordPhase,
+  ]);
 
   const handleReset = useCallback(() => {
     setPlayWords(shuffleArray(words));
@@ -1008,63 +1032,64 @@ export function PronunciationGame({
           )}
         </div>
 
-        {recordPhase !== "idle" && (
-          <div
-            className="mt-4 rounded-2xl border-2 border-red-400 bg-red-50 px-4 py-4 text-center shadow-md"
-            role="status"
-            aria-live="polite"
-          >
-            <p className="text-lg font-bold text-red-700">
-              {recordPhase === "starting" && "🎤 Đang bật micro..."}
-              {recordPhase === "listening" && "🔴 Đang ghi âm — đọc to nhé!"}
-              {recordPhase === "processing" && "⏳ Đang xử lý giọng nói..."}
+        <div
+          className={`mt-4 min-h-[5.75rem] rounded-2xl px-4 py-4 text-center ${
+            recordPhase === "idle"
+              ? "invisible"
+              : "border-2 border-red-400 bg-red-50 shadow-md"
+          }`}
+          role="status"
+          aria-live="polite"
+        >
+          <p className="text-lg font-bold text-red-700">
+            {recordPhase === "starting" && "🎤 Đang bật micro..."}
+            {recordPhase === "listening" && "🔴 Đang ghi âm — đọc to nhé!"}
+            {recordPhase === "processing" && "⏳ Đang xử lý giọng nói..."}
+          </p>
+          {recordPhase === "listening" && (
+            <p className="mt-1 text-sm text-red-600">
+              Bấm &quot;Dừng ghi&quot; bên dưới khi đọc xong
             </p>
-            {recordPhase === "listening" && (
-              <p className="mt-1 text-sm text-red-600">
-                Bấm &quot;Dừng ghi&quot; bên dưới khi đọc xong
-              </p>
-            )}
-          </div>
-        )}
+          )}
+        </div>
 
         <div
           className="mt-6 flex flex-col sm:flex-row gap-3 justify-center"
           data-no-click-sound="true"
         >
           <button
+            type="button"
             onClick={handleListen}
-            disabled={isSpeaking}
+            disabled={isSpeaking || recordPhase !== "idle"}
             data-no-click-sound="true"
             className={`rounded-xl px-6 py-3 font-bold text-white transition w-full sm:w-auto ${
-              isSpeaking
-                ? "bg-gray-400 cursor-not-allowed"
+              isSpeaking || recordPhase !== "idle"
+                ? "pointer-events-none bg-gray-400 cursor-not-allowed"
                 : ui.primaryBtn
             }`}
           >
             🔊 Nghe từ
           </button>
           <button
+            type="button"
             onPointerDown={(event) => {
               if (event.pointerType !== "touch" && event.pointerType !== "pen") {
                 return;
               }
               event.preventDefault();
+              event.stopPropagation();
               recordHandledByPointerRef.current = true;
               void handleRecord();
             }}
-            onClick={() => {
+            onClick={(event) => {
+              event.stopPropagation();
               if (recordHandledByPointerRef.current) {
                 recordHandledByPointerRef.current = false;
                 return;
               }
               void handleRecord();
             }}
-            disabled={
-              !isSupported ||
-              isSpeaking ||
-              recordPhase === "processing" ||
-              recordPhase === "starting"
-            }
+            disabled={!isSupported || isSpeaking || recordPhase === "processing"}
             data-no-click-sound="true"
             className={`touch-manipulation rounded-xl px-6 py-3 font-bold text-white transition ${
               recordPhase === "listening"
@@ -1083,8 +1108,14 @@ export function PronunciationGame({
                   : "🎤 Ghi âm"}
           </button>
           <button
+            type="button"
             onClick={handleNext}
-            className={`rounded-xl px-6 py-3 font-bold text-white transition w-full sm:w-auto ${ui.primaryBtn}`}
+            disabled={recordPhase !== "idle"}
+            className={`rounded-xl px-6 py-3 font-bold text-white transition w-full sm:w-auto ${
+              recordPhase !== "idle"
+                ? "pointer-events-none bg-gray-400 cursor-not-allowed"
+                : ui.primaryBtn
+            }`}
           >
             {currentIndex >= playWords.length - 1
               ? "🏁 Hoàn thành"
