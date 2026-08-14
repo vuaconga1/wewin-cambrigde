@@ -108,7 +108,8 @@ export function FantasyForestBackground({
     >
       {hasScene ? (
         <>
-          {/* Full-scene illustrated wallpaper */}
+          {/* Full-scene wallpaper. Inline size beats globals.css `img { height:auto; max-width:100% }`
+              which otherwise leaves a strip of sky/old layer visible at the bottom. */}
           <Image
             src={config.scene}
             alt=""
@@ -116,7 +117,18 @@ export function FantasyForestBackground({
             priority
             unoptimized
             sizes="100vw"
-            className="object-cover object-center transition-opacity duration-700"
+            data-forest-scene="true"
+            className="transition-opacity duration-700"
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              maxWidth: "none",
+              maxHeight: "none",
+              objectFit: "cover",
+              objectPosition: "center",
+            }}
           />
 
           {/* Light center wash so game cards stay readable */}

@@ -15,18 +15,35 @@ import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { GameProgressModule } from './game-progress/game-progress.module';
 import { VocabImagesModule } from './vocab-images/vocab-images.module';
 
+function isLocalDatabase(host: string) {
+  return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+}
+
 function resolveDatabaseUrl() {
   const raw = process.env.DATABASE_URL?.trim() ?? '';
   if (!raw) return raw;
   try {
     const parsed = new URL(raw);
     parsed.searchParams.delete('channel_binding');
-    if (!parsed.searchParams.has('sslmode')) {
+    if (isLocalDatabase(parsed.hostname)) {
+      // Local Postgres thường không bật SSL -> không ép sslmode.
+      parsed.searchParams.delete('sslmode');
+    } else if (!parsed.searchParams.has('sslmode')) {
       parsed.searchParams.set('sslmode', 'require');
     }
     return parsed.toString();
   } catch {
     return raw.replace(/[&?]channel_binding=[^&]*/g, '');
+  }
+}
+
+function shouldUseSsl() {
+  const raw = process.env.DATABASE_URL?.trim() ?? '';
+  if (!raw) return false;
+  try {
+    return !isLocalDatabase(new URL(raw).hostname);
+  } catch {
+    return !raw.includes('localhost');
   }
 }
 
@@ -40,9 +57,7 @@ function resolveDatabaseUrl() {
       url: resolveDatabaseUrl(),
       autoLoadEntities: true,
       synchronize: process.env.NODE_ENV !== 'production',
-      ssl: process.env.DATABASE_URL?.includes('localhost')
-        ? false
-        : { rejectUnauthorized: false },
+      ssl: shouldUseSsl() ? { rejectUnauthorized: false } : false,
       retryAttempts: 10,
       retryDelay: 3000,
     }),

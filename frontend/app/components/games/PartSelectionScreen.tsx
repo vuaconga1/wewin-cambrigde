@@ -8,6 +8,7 @@ import { DEFAULT_ENABLED_GAMES } from "@/types/games";
 import { GameBackButton } from "@/app/components/games/GameBackButton";
 import { GameMobileToolbar } from "@/app/components/games/GameMobileToolbar";
 import { SeasonCardDecor } from "@/app/components/games/forest-background";
+import { MascotGuide } from "@/app/components/games/MascotGuide";
 import { GAMES_LIBRARY_PATH, syncLeaderboardPair } from "@/lib/games/leaderboardNav";
 
 type PartSelectionScreenProps = {
@@ -129,6 +130,8 @@ export function PartSelectionScreen({
 
   const isDesktop = cardSize.width >= 360;
   const carouselHeight = cardSize.height + 48;
+  const activePart = parts[activeIndex] ?? parts[0];
+  const activePartGameCount = getGameCount(activePart);
 
   const renderStackedCard = (slot: StackSlot) => {
     const isCenter = slot.position === "center";
@@ -256,16 +259,26 @@ export function PartSelectionScreen({
       )}
 
       <div className="flex flex-1 flex-col justify-center px-3 py-4 sm:px-4 md:px-6 md:py-8">
-        <div className="mb-3 text-center md:mb-6">
-          <h1
-            className="mb-3 hidden text-3xl font-bold drop-shadow-lg sm:text-5xl md:block"
-            style={{ textShadow: "0 12px 25px rgba(0,0,0,0.3)", color: "#0E4BA9" }}
-          >
-            {heading}
-          </h1>
-          <p className="text-base font-medium text-black sm:text-2xl md:text-3xl">
-            Choose topic to play game
-          </p>
+        <div className="relative z-10 mx-auto mb-3 w-full max-w-6xl md:mb-6">
+          <MascotGuide
+            variant="inline"
+            side="left"
+            dismissible={false}
+            title={`📜 Bản đồ nhiệm vụ: ${activePart.title}`}
+            message={`Tớ đã tìm thấy ${activePartGameCount} thử thách giúp em luyện các từ trong chủ đề này! Em hãy vuốt hoặc bấm mũi tên để xem vùng đất khác. Khi sẵn sàng, bấm PLAY NOW và cùng Hiệp sĩ WeWin lên đường nhé!`}
+            className="mx-auto w-full max-w-3xl"
+          />
+          <div className="px-2 text-center">
+            <h1
+              className="mb-2 hidden text-3xl font-bold drop-shadow-lg sm:text-5xl md:block"
+              style={{ textShadow: "0 12px 25px rgba(0,0,0,0.3)", color: "#0E4BA9" }}
+            >
+              {heading}
+            </h1>
+            <p className="text-base font-medium text-black sm:text-2xl md:text-3xl">
+              Choose topic to play game
+            </p>
+          </div>
         </div>
 
         <div

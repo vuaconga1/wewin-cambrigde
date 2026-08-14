@@ -42,6 +42,14 @@ svg {
   height: auto;
 }
 
+/* next/image `fill` + full-bleed backgrounds must ignore the rule above */
+img[data-forest-scene="true"] {
+  max-width: none !important;
+  max-height: none !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
 button,
 input,
 textarea,

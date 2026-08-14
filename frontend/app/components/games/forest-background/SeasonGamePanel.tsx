@@ -2,6 +2,10 @@
 
 import type { ReactNode } from "react";
 
+import { MascotGuide } from "@/app/components/games/MascotGuide";
+import { GAME_GUIDES } from "@/app/components/games/gameGuideContent";
+import type { GameKey } from "@/types/games";
+
 import { useForestThemeContextOptional } from "./ForestThemeContext";
 import {
   getGameSeasonTheme,
@@ -26,6 +30,8 @@ type SeasonGamePanelProps = {
   className?: string;
   maxWidth?: "4xl" | "5xl" | "6xl" | "7xl";
   showStory?: boolean;
+  /** Mascot WeWin giới thiệu mục tiêu và cách chơi của từng game. */
+  showMascot?: boolean;
 };
 
 const MAX_W = {
@@ -41,14 +47,26 @@ export function SeasonGamePanel({
   className = "",
   maxWidth = "5xl",
   showStory = false,
+  showMascot = true,
 }: SeasonGamePanelProps) {
   const { ui } = useGameSeasonTheme(game);
+  const gameplayGuide =
+    game in GAME_GUIDES ? GAME_GUIDES[game as GameKey] : null;
 
   return (
     <section className="min-h-screen bg-transparent py-4 md:py-8 lg:py-10 px-1 md:px-4 lg:px-6">
       <div
         className={`rounded-xl md:rounded-2xl border p-3 md:p-6 mx-auto ${MAX_W[maxWidth]} ${ui.panel} ${ui.panelBorder} ${ui.panelShadow} ${className}`}
       >
+        {showMascot && gameplayGuide && (
+          <MascotGuide
+            variant="inline"
+            side="left"
+            dismissible={false}
+            title={`✨ Nhiệm vụ ${gameplayGuide.title}`}
+            message={`${gameplayGuide.summary} ${gameplayGuide.howToPlay} Hiệp sĩ WeWin tin em sẽ làm được!`}
+          />
+        )}
         {showStory && (
           <div
             className={`mb-4 md:mb-5 flex items-start gap-3 rounded-xl border px-3 py-2.5 md:px-4 md:py-3 ${ui.storyBadge}`}

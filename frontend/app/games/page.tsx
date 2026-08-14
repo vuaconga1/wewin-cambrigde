@@ -5,6 +5,8 @@ import GameCard from "../components/books/GameCard";
 import { LevelBooksCarousel } from "../components/games/LevelBooksCarousel";
 import { Book } from "../../lib/constants/types";
 import { ForestPageShell } from "@/app/components/games/forest-background";
+import { MascotGuide } from "@/app/components/games/MascotGuide";
+import { LEVEL_LIBRARY_GUIDE } from "@/app/components/games/gameGuideContent";
 
 // Danh sách các sách có game - sử dụng routes PUBLIC
 const gameBooks: Book[] = [
@@ -57,6 +59,15 @@ function GamesLibraryContent() {
           </p>
           <div className="mx-auto mt-2.5 h-1 w-16 rounded-full bg-linear-to-r from-blue-400 via-indigo-400 to-purple-400 sm:mt-3 sm:w-24" />
         </div>
+
+        <MascotGuide
+          variant="inline"
+          side="left"
+          dismissible={false}
+          title={LEVEL_LIBRARY_GUIDE.title}
+          message={LEVEL_LIBRARY_GUIDE.message}
+          className="mx-auto w-full max-w-3xl shrink-0"
+        />
 
         <div className="flex flex-1 flex-col justify-center">
           {/* Mobile + tablet: 1 main + 2 peeks */}

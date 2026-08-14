@@ -20,6 +20,8 @@ import {
   SeasonCardDecor,
   useGameSeasonTheme,
 } from "@/app/components/games/forest-background";
+import { MascotGuide } from "@/app/components/games/MascotGuide";
+import { GAME_GUIDES } from "@/app/components/games/gameGuideContent";
 import {
   Volume2,
   Mic,
@@ -600,16 +602,30 @@ export function GameMenu({
 
   const isDesktop = cardSize.width >= 360;
   const carouselHeight = cardSize.height + 48;
+  const activeGame = visibleGameCards[activeCardIndex];
+  const activeGuide = activeGame ? GAME_GUIDES[activeGame.type] : null;
 
   return (
     <div className="flex w-full flex-1 flex-col justify-center px-3 sm:px-4 py-4 md:px-6 md:py-8">
       <div className="mx-auto w-full max-w-6xl">
-        <div className="mb-3 text-center md:mb-6">
-          {description && (
-            <p className="text-lg font-medium text-black md:text-3xl">
-              {description}
-            </p>
+        <div className="relative z-10 mb-3 md:mb-6">
+          {activeGuide && (
+            <MascotGuide
+              variant="inline"
+              side="left"
+              dismissible={false}
+              title={`🗺️ Hiệp sĩ WeWin giới thiệu ${activeGuide.title}`}
+              message={`${activeGuide.summary} ${activeGuide.howToPlay} Muốn khám phá thử thách khác, em hãy vuốt hoặc bấm mũi tên nhé!`}
+              className="mx-auto w-full max-w-3xl"
+            />
           )}
+          <div className="px-2 text-center">
+            {description && (
+              <p className="text-lg font-medium text-black md:text-3xl">
+                {description}
+              </p>
+            )}
+          </div>
         </div>
 
         <div

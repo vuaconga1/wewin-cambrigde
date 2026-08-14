@@ -163,21 +163,23 @@ export function FlipCardGame({
                   className={`forest-card-face forest-card-face-front border-2 p-1 sm:p-1.5 md:p-2.5 cursor-default ${ui.cardRevealed}`}
                 >
                   <div className="forest-card-face-content gap-0.5 px-0.5">
-                    <WordVisual
-                      icon={word.icon}
-                      emoji={word.emoji}
-                      alt={word.text}
-                      className="text-base sm:text-xl md:text-3xl shrink-0 leading-none"
-                      imageClassName="h-7 w-7 sm:h-10 sm:w-10 md:h-12 md:w-12 object-contain shrink-0"
-                    />
+                    <div className="forest-card-visual">
+                      <WordVisual
+                        icon={word.icon}
+                        emoji={word.emoji}
+                        alt={word.text}
+                        className="h-full w-full min-h-0 flex items-center justify-center text-base sm:text-xl md:text-3xl leading-none"
+                        imageClassName="max-h-full max-w-full h-auto w-auto object-contain"
+                      />
+                    </div>
                     <div
-                      className={`w-full text-[10px] sm:text-xs md:text-sm lg:text-base font-bold break-words leading-tight line-clamp-2 text-center ${ui.heading}`}
+                      className={`shrink-0 w-full text-[10px] sm:text-xs md:text-sm lg:text-base font-bold break-words leading-tight line-clamp-2 text-center ${ui.heading}`}
                     >
                       {word.text}
                     </div>
                     {word.meaning && (
                       <div
-                        className={`w-full text-[9px] sm:text-[10px] md:text-xs lg:text-sm leading-tight line-clamp-1 text-center ${ui.subtext}`}
+                        className={`shrink-0 w-full text-[9px] sm:text-[10px] md:text-xs lg:text-sm leading-tight line-clamp-1 text-center ${ui.subtext}`}
                       >
                         {word.meaning}
                       </div>
