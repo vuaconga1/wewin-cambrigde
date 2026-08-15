@@ -25,9 +25,7 @@ function notifySfxListeners() {
   listeners.forEach((listener) => listener());
 }
 
-export function readSfxSettings(): SfxSettings {
-  if (typeof window === "undefined") return SFX_DEFAULT_SETTINGS;
-
+function parseStoredSettings(): SfxSettings {
   try {
     const raw = localStorage.getItem(SFX_STORAGE_KEY);
     if (!raw) return SFX_DEFAULT_SETTINGS;
@@ -46,8 +44,18 @@ export function readSfxSettings(): SfxSettings {
   }
 }
 
+/** Snapshot ổn định để useSyncExternalStore không lặp vô hạn. */
+let cachedSettings: SfxSettings | null = null;
+
+export function readSfxSettings(): SfxSettings {
+  if (typeof window === "undefined") return SFX_DEFAULT_SETTINGS;
+  cachedSettings ??= parseStoredSettings();
+  return cachedSettings;
+}
+
 export function writeSfxSettings(settings: SfxSettings) {
   if (typeof window === "undefined") return;
+  cachedSettings = settings;
   localStorage.setItem(SFX_STORAGE_KEY, JSON.stringify(settings));
   notifySfxListeners();
 }

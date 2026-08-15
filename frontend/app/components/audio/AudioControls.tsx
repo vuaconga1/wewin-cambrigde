@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { Volume2, VolumeX } from "lucide-react";
 
 import { useBackgroundMusic } from "./BackgroundMusicProvider";
@@ -11,10 +18,32 @@ import {
   subscribeSfxSettings,
   writeSfxSettings,
 } from "./sfxSettings";
+import {
+  readVoiceSettings,
+  subscribeVoiceSettings,
+  VOICE_DEFAULT_SETTINGS,
+  writeVoiceSettings,
+} from "./voiceSettings";
 
 type Props = {
   compact?: boolean;
 };
+
+function useSfxSettings() {
+  return useSyncExternalStore(
+    subscribeSfxSettings,
+    readSfxSettings,
+    () => SFX_DEFAULT_SETTINGS,
+  );
+}
+
+function useVoiceSettings() {
+  return useSyncExternalStore(
+    subscribeVoiceSettings,
+    readVoiceSettings,
+    () => VOICE_DEFAULT_SETTINGS,
+  );
+}
 
 function VolumeRow({
   label,
@@ -80,35 +109,44 @@ function AudioControlsPanel() {
     toggleMute: toggleBgmMute,
   } = useBackgroundMusic();
 
-  const [sfxSettings, setSfxSettings] = useState(SFX_DEFAULT_SETTINGS);
-
-  useEffect(() => {
-    setSfxSettings(readSfxSettings());
-    return subscribeSfxSettings(() => setSfxSettings(readSfxSettings()));
-  }, []);
+  const sfxSettings = useSfxSettings();
+  const voiceSettings = useVoiceSettings();
 
   const bgmEffectiveMuted = bgmMuted || bgmVolume === 0;
   const bgmVolumePercent = Math.round(bgmVolume * 100);
   const sfxEffectiveMuted = sfxSettings.muted || sfxSettings.volume === 0;
   const sfxVolumePercent = Math.round(sfxSettings.volume * 100);
+  const voiceEffectiveMuted = voiceSettings.muted || voiceSettings.volume === 0;
+  const voiceVolumePercent = Math.round(voiceSettings.volume * 100);
 
   const setSfxVolume = useCallback((volume: number) => {
     const clamped = Math.min(1, Math.max(0, volume));
-    const next = { volume: clamped, muted: clamped === 0 };
-    writeSfxSettings(next);
-    setSfxSettings(next);
+    writeSfxSettings({ volume: clamped, muted: clamped === 0 });
   }, []);
 
   const toggleSfxMute = useCallback(() => {
-    setSfxSettings((prev) => {
-      const nextMuted = !prev.muted;
-      const next =
-        nextMuted || prev.volume > 0
-          ? { ...prev, muted: nextMuted }
-          : { ...prev, muted: false, volume: SFX_DEFAULT_SETTINGS.volume };
-      writeSfxSettings(next);
-      return next;
-    });
+    const prev = readSfxSettings();
+    const nextMuted = !prev.muted;
+    writeSfxSettings(
+      nextMuted || prev.volume > 0
+        ? { ...prev, muted: nextMuted }
+        : { muted: false, volume: SFX_DEFAULT_SETTINGS.volume },
+    );
+  }, []);
+
+  const setVoiceVolume = useCallback((volume: number) => {
+    const clamped = Math.min(1, Math.max(0, volume));
+    writeVoiceSettings({ volume: clamped, muted: clamped === 0 });
+  }, []);
+
+  const toggleVoiceMute = useCallback(() => {
+    const prev = readVoiceSettings();
+    const nextMuted = !prev.muted;
+    writeVoiceSettings(
+      nextMuted || prev.volume > 0
+        ? { ...prev, muted: nextMuted }
+        : { muted: false, volume: VOICE_DEFAULT_SETTINGS.volume },
+    );
   }, []);
 
   return (
@@ -149,6 +187,18 @@ function AudioControlsPanel() {
         onToggleMute={toggleSfxMute}
         ariaPrefix="hiệu ứng"
       />
+
+      <div className="h-px bg-slate-200" />
+
+      <VolumeRow
+        label="Lời động viên"
+        volumePercent={voiceVolumePercent}
+        effectiveMuted={voiceEffectiveMuted}
+        accentClass="accent-amber-500"
+        onVolumeChange={setVoiceVolume}
+        onToggleMute={toggleVoiceMute}
+        ariaPrefix="lời động viên"
+      />
     </div>
   );
 }
@@ -158,17 +208,13 @@ export function AudioControls({ compact = true }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  const [sfxMuted, setSfxMuted] = useState(false);
-  useEffect(() => {
-    const sync = () => {
-      const s = readSfxSettings();
-      setSfxMuted(s.muted || s.volume === 0);
-    };
-    sync();
-    return subscribeSfxSettings(sync);
-  }, []);
+  const sfxSettings = useSfxSettings();
+  const voiceSettings = useVoiceSettings();
 
-  const allMuted = (muted || volume === 0) && sfxMuted;
+  const allMuted =
+    (muted || volume === 0) &&
+    (sfxSettings.muted || sfxSettings.volume === 0) &&
+    (voiceSettings.muted || voiceSettings.volume === 0);
 
   useEffect(() => {
     if (!open) return;

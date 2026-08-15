@@ -26,3 +26,11 @@ export {
   SFX_STORAGE_KEY,
   type SfxSettings,
 } from "./sfxSettings";
+export {
+  getVoiceVolumeMultiplier,
+  readVoiceSettings,
+  VOICE_DEFAULT_SETTINGS,
+  VOICE_DEFAULT_VOLUME,
+  VOICE_STORAGE_KEY,
+  type VoiceSettings,
+} from "./voiceSettings";

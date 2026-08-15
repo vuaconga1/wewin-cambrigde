@@ -33,7 +33,7 @@ const MASCOT_SIZE: Record<MascotVariant, { width: number; height: number }> = {
 };
 
 const DEFAULT_MESSAGE =
-  "Chào em! Tớ là Hiệp sĩ WeWin. Tớ sẽ đồng hành và giúp em vượt qua mọi thử thách trong Vương quốc Tiếng Anh nhé!";
+  "Chào em! Tớ là Hiệp sĩ WeWin, sẽ đồng hành cùng em trong Vương quốc Tiếng Anh nhé!";
 
 /** Guide chip — size locked via inline styles (globals.css sets img { height:auto }). */
 export function MascotGuide({

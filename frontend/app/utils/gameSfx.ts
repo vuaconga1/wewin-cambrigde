@@ -4,7 +4,7 @@
  */
 
 import { getSfxVolumeMultiplier } from "@/app/components/audio/sfxSettings";
-import { playVoiceSfx } from "@/app/utils/voiceSfx";
+import { playVoiceSfx, type VoiceSfxOption } from "@/app/utils/voiceSfx";
 
 export type GameSfxType =
   | "correct"
@@ -181,19 +181,20 @@ const PLAYERS: Record<GameSfxType, PlayerFn> = {
 };
 
 /** Phát hiệu ứng âm thanh game. Im lặng nếu trình duyệt chặn AudioContext. */
-export function playGameSfx(type: GameSfxType) {
-  const sfxScale = getSfxVolumeMultiplier();
-  if (sfxScale <= 0) return;
-
+export function playGameSfx(type: GameSfxType, voice?: VoiceSfxOption) {
+  // Lời động viên có mục âm lượng riêng, không phụ thuộc thanh "Hiệu ứng".
   if (type === "celebration" || type === "correct") {
-    playVoiceSfx("correct");
+    playVoiceSfx("correct", voice);
     return;
   }
 
   if (type === "wrong") {
-    playVoiceSfx("wrong");
+    playVoiceSfx("wrong", voice);
     return;
   }
+
+  const sfxScale = getSfxVolumeMultiplier();
+  if (sfxScale <= 0) return;
 
   const ctx = getContext();
   if (!ctx) return;

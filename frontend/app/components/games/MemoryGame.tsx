@@ -182,6 +182,7 @@ export function MemoryGame({
             setIsChecking(false);
           }, 500);
         } else {
+          triggerFeedback("wrong");
           setTimeout(() => {
             setCards((prev) =>
               prev.map((c) =>
