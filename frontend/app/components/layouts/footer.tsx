@@ -106,22 +106,40 @@ export default function Footer() {
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
-              {/* Contact Items */}
               <ContactItem
                 icon={<MapPin className="w-4 h-4 text-white" />}
-                label="Địa chỉ"
-                content="292B Nơ Trang Long, P.12, Bình Thạnh, TP.HCM"
+                label="Cơ sở 1"
+                content="292B Nơ Trang Long, Bình Thạnh, TP.HCM"
               />
 
               <ContactItem
                 icon={<Phone className="w-4 h-4 text-white" />}
-                label="Điện thoại"
+                label="Hotline cơ sở 1"
                 content={
                   <a
                     href="tel:0345969388"
                     className="hover:text-white transition-colors"
                   >
                     0345 969 388
+                  </a>
+                }
+              />
+
+              <ContactItem
+                icon={<MapPin className="w-4 h-4 text-white" />}
+                label="Cơ sở 2"
+                content="742 Xô Viết Nghệ Tĩnh, Thạnh Mỹ Tây, TP.HCM"
+              />
+
+              <ContactItem
+                icon={<Phone className="w-4 h-4 text-white" />}
+                label="Hotline cơ sở 2"
+                content={
+                  <a
+                    href="tel:0378669388"
+                    className="hover:text-white transition-colors"
+                  >
+                    0378 669 388
                   </a>
                 }
               />
