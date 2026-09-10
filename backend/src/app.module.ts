@@ -14,6 +14,7 @@ import { StudentModule } from './student/student.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { GameProgressModule } from './game-progress/game-progress.module';
 import { VocabImagesModule } from './vocab-images/vocab-images.module';
+import { ParentModule } from './parent/parent.module';
 
 function isLocalDatabase(host: string) {
   return host === 'localhost' || host === '127.0.0.1' || host === '::1';
@@ -72,6 +73,7 @@ function shouldUseSsl() {
     LeaderboardModule,
     GameProgressModule,
     VocabImagesModule,
+    ParentModule,
   ],
 
   controllers: [AppController],

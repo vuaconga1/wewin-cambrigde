@@ -17,6 +17,8 @@ async function bootstrap() {
     'https://wewin-cambrigde.vercel.app',
     'https://wewin-cambridge.vercel.app',
     'https://cambrigde.wewin.edu.vn',
+    'https://wewincambridge.baobai.edu.vn',
+    'https://wewin.baobai.edu.vn',
     ...(process.env.CORS_ORIGINS
       ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim())
       : []),
