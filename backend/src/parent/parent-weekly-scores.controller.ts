@@ -9,10 +9,10 @@ import {
 
 @Controller('parent')
 export class ParentWeeklyScoresController {
-  constructor(private readonly weeklyScores: ParentWeeklyScoresService) {}
+  constructor(private readonly weeklyScoresService: ParentWeeklyScoresService) {}
 
   @Get('weekly-scores')
-  async weeklyScores(
+  async getWeeklyScores(
     @Headers('authorization') authorization: string | undefined,
     @Query('weekKey') weekKey: string | undefined,
     @Query('week') week: string | undefined,
@@ -36,7 +36,7 @@ export class ParentWeeklyScoresController {
       });
     }
 
-    const weekWindow = this.weeklyScores.parseWeek({ weekKey, week, year });
+    const weekWindow = this.weeklyScoresService.parseWeek({ weekKey, week, year });
     if (!weekWindow) {
       return res.status(400).json({
         ok: false,
@@ -45,7 +45,7 @@ export class ParentWeeklyScoresController {
     }
 
     try {
-      const payload = await this.weeklyScores.load(claims.sid, weekWindow);
+      const payload = await this.weeklyScoresService.load(claims.sid, weekWindow);
       return res.status(200).json(payload);
     } catch {
       return res.status(500).json({ ok: false, message: 'Lỗi hệ thống' });
