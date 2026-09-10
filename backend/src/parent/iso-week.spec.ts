@@ -1,6 +1,6 @@
 import { createHmac } from 'crypto';
 import { parseIsoWeekKey, parseIsoWeekYearAndWeek, getIsoWeekAndYear } from './iso-week';
-import { verifyPortalSsoToken } from './portal-sso';
+import { verifyPortalInternalKey, verifyPortalSsoToken } from './portal-sso';
 
 function padBase64Url(buf: Buffer) {
   return buf
@@ -77,5 +77,11 @@ describe('portal SSO JWT', () => {
     expect(verifyPortalSsoToken(signHs256('HV-1602', secret, -10))).toBeNull();
     expect(verifyPortalSsoToken('not.a.jwt')).toBeNull();
     expect(verifyPortalSsoToken('')).toBeNull();
+  });
+
+  it('accepts the internal portal key and rejects mismatches', () => {
+    expect(verifyPortalInternalKey(secret)).toBe(true);
+    expect(verifyPortalInternalKey('wrong-portal-key-value')).toBe(false);
+    expect(verifyPortalInternalKey('')).toBe(false);
   });
 });

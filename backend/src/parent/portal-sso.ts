@@ -24,6 +24,20 @@ function fromBase64Url(input: string): Buffer {
   return Buffer.from(padded + pad, 'base64');
 }
 
+export function secretsEqual(left: string, right: string): boolean {
+  const a = Buffer.from(left);
+  const b = Buffer.from(right);
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
+
+export function verifyPortalInternalKey(header: string | undefined): boolean {
+  const secret = portalSsoSecret();
+  const raw = String(header || '').trim();
+  if (!secret || !raw) return false;
+  return secretsEqual(raw, secret);
+}
+
 export function readBearerToken(header: string | undefined): string {
   const match = /^Bearer\s+(\S+)/i.exec(String(header || '').trim());
   return match?.[1] || '';

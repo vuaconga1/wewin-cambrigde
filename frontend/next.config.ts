@@ -74,6 +74,15 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        source: "/api/parent/weekly-scores",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "https://wewin.baobai.edu.vn" },
+          { key: "Access-Control-Allow-Methods", value: "GET, OPTIONS" },
+          { key: "Access-Control-Allow-Headers", value: "Authorization, Content-Type" },
+          { key: "Vary", value: "Origin" },
+        ],
+      },
+      {
         source: "/:path*",
         headers: [
           {
