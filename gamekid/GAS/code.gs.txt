@@ -1,0 +1,2606 @@
+/************************************************************
+ * EDUX / WeWIN - PARENT PORTAL WEB APP
+ *
+ * BẢN HOÀN CHỈNH - HOST INDEX.HTML TRÊN GITHUB PAGES
+ *
+ * Luồng đúng hiện tại:
+ * - KHÔNG đọc sheet danh sách lớp/học phí trong mail edu.
+ * - Phụ huynh đăng nhập bằng Mã HV, ví dụ: WeWIN01-HV-1602, WeWIN-HV01-00001 hoặc ST-50954.
+ * - Mật khẩu mặc định: 123.
+ * - Apps Script vào Drive ROOT để tìm file Student Profile.
+ * - Tên file có thể là: WeWIN01__STUDENT__WeWIN01-HV-1602, WeWIN__STUDENT__WeWIN-HV01-00001 hoặc WeWIN01__STUDENT__ST-50954.
+ * - Apps Script mở file profile, đọc các sheet bên trong và trả data đã chuẩn hóa.
+ * - GitHub Pages gọi Apps Script bằng JSONP để tránh lỗi CORS / Failed to fetch.
+ * - Frontend: host index.html trên GitHub Pages; đặt API_URL_OVERRIDE trỏ tới URL Web App deploy.
+ ************************************************************/
+
+const CFG = {
+  SCHOOL_NAME: 'WeWIN - Góc học tập của con',
+  TIMEZONE: 'Asia/Ho_Chi_Minh',
+  DEFAULT_ACCESS_CODE: '123',
+
+  // ROOT folder:
+  // https://drive.google.com/drive/folders/1rjtcm_r3VyYBRQMDE0bvQDyRgxGNOhgR
+  PROFILE_ROOT_FOLDER_ID: '1rjtcm_r3VyYBRQMDE0bvQDyRgxGNOhgR',
+
+  // ROOT -> WeWIN01 -> 02_Student_Profiles -> Active
+  PROFILE_PATH: ['WeWIN01', '02_Student_Profiles', 'Active'],
+
+  // Tên sheet có thể có dấu hoặc không dấu.
+  SHEETS: {
+    OVERVIEW: ['Tổng quan', 'Tong quan', 'Overview'],
+    HISTORY: ['History-TKB', 'History TKB'],
+    HISTORY_DAILY: ['History dailydata', 'History Daily Data'],
+    HISTORY_ATTENDANCE: ['History-DiemDanh', 'History DiemDanh', 'History Điểm Danh'],
+    DAILY: ['Daily data', 'Daily Data'],
+    ATTENDANCE: ['DiemDanh', 'ĐiểmDanh', 'Điểm Danh', 'Attendance'],
+    SCORE: ['Điểm', 'Diem', 'Score', 'Scores'],
+    HOMEWORK: ['BTVN', 'Homework'],
+    REPORT: ['Báo cáo cá nhân', 'Bao cao ca nhan', 'Report'],
+    MINITEST_LEDGER: ['_Minitest_Ledger'],
+    LESSON: ['Baobai', 'Báo bài', 'Bao bai']
+  },
+
+  HOMEWORK_CONFIRM_SHEET: 'PORTAL_HOMEWORK_CONFIRM',
+
+  MAX_ROWS_PER_SHEET: 700,
+  MAX_COLUMNS_PER_SHEET: 60,
+  PROFILE_FILE_CACHE_SECONDS: 21600,
+  PORTAL_DATA_CACHE_SECONDS: 300,
+  PROFILE_FILE_PROPERTY_PREFIX: 'profile_file_id_v2_',
+  PROFILE_ACTIVE_FOLDER_PROPERTY_KEY: 'profile_active_folder_id_v2',
+
+  // Chỉ đọc các sheet thực sự được buildPortalData_ sử dụng.
+  // SCORE và HOMEWORK vẫn được giữ trong CFG.SHEETS cho các luồng khác,
+  // nhưng không cần tải trong mỗi lần phụ huynh đăng nhập.
+  PORTAL_READ_SHEET_KEYS: [
+    'OVERVIEW',
+    'HISTORY',
+    'HISTORY_DAILY',
+    'HISTORY_ATTENDANCE',
+    'DAILY',
+    'ATTENDANCE',
+    'REPORT',
+    'MINITEST_LEDGER',
+    'LESSON'
+  ],
+
+  // SSO → Game Trắc Nghiệm (phải trùng PORTAL_SSO_SECRET trên Vercel)
+  GAME_SSO_SECRET: 'wewin-portal-quiz-sso-shared-secret-2026v1',
+  QUIZ_GAME_BASE_URL: 'https://game-trac-nghiem.vercel.app',
+  GAME_SSO_TOKEN_TTL_SECONDS: 180
+};
+
+/************************************************************
+ * WEB APP ENTRY
+ ************************************************************/
+function doGet(e) {
+  const mode = clean_((e && e.parameter && e.parameter.mode) || '');
+
+  if (sameText_(mode, 'api')) {
+    return handleApiRequest_(e);
+  }
+
+  return ContentService
+    .createTextOutput('EDUX Parent Portal API is running. Add ?mode=api&action=ping')
+    .setMimeType(ContentService.MimeType.TEXT);
+}
+
+function doPost(e) {
+  return handleApiRequest_(e);
+}
+
+/************************************************************
+ * API HANDLER - JSON / JSONP
+ ************************************************************/
+function handleApiRequest_(e) {
+  let callback = '';
+  let action = '';
+  const startedAt = Date.now();
+  const requestId = createRequestId_();
+
+  try {
+    const p = getRequestParams_(e);
+    callback = clean_(p.callback || '');
+
+    action = clean_(p.action || '');
+    let result;
+
+    switch (action) {
+      case 'login':
+        result = loginStudent(
+          p.studentId,
+          p.accessCode || CFG.DEFAULT_ACCESS_CODE
+        );
+        break;
+
+      case 'refresh':
+        result = refreshStudentData(
+          p.studentId,
+          p.accessCode || CFG.DEFAULT_ACCESS_CODE
+        );
+        break;
+
+      case 'find_profile':
+        result = apiFindProfile_(p.studentId);
+        break;
+
+      case 'confirm_homework':
+        result = confirmHomeworkStatus_(
+          p.studentId,
+          p.accessCode || CFG.DEFAULT_ACCESS_CODE,
+          p.date,
+          p.task,
+          p.status
+        );
+        break;
+
+      case 'ping':
+        result = {
+          ok: true,
+          message: 'API EDUX đang hoạt động.',
+          appName: CFG.SCHOOL_NAME,
+          profileRootFolderId: CFG.PROFILE_ROOT_FOLDER_ID,
+          profilePath: CFG.PROFILE_PATH.join(' / '),
+          time: Utilities.formatDate(new Date(), CFG.TIMEZONE, 'dd/MM/yyyy HH:mm:ss')
+        };
+        break;
+
+      case 'game_sso_token':
+        result = createGameSsoTokenResponse_(
+          p.studentId,
+          p.accessCode || CFG.DEFAULT_ACCESS_CODE,
+          p.name || ''
+        );
+        break;
+
+      default:
+        result = {
+          ok: false,
+          message: 'API action không hợp lệ.'
+        };
+    }
+
+    return apiOutput_(attachApiMeta_(result, requestId, startedAt), callback);
+
+  } catch (err) {
+    const errorInfo = classifyApiError_(err);
+    console.error(JSON.stringify({
+      requestId: requestId,
+      action: action,
+      code: errorInfo.code,
+      rawMessage: errorInfo.rawMessage,
+      stack: err && err.stack ? String(err.stack) : ''
+    }));
+
+    return apiOutput_(attachApiMeta_({
+      ok: false,
+      code: errorInfo.code,
+      retryable: errorInfo.retryable,
+      message: errorInfo.message
+    }, requestId, startedAt), callback);
+  }
+}
+
+function createRequestId_() {
+  try {
+    return Utilities.getUuid().replace(/-/g, '').slice(0, 12);
+  } catch (err) {
+    return String(Date.now()) + String(Math.floor(Math.random() * 1000));
+  }
+}
+
+function attachApiMeta_(obj, requestId, startedAt) {
+  const result = obj && typeof obj === 'object'
+    ? obj
+    : { ok: false, message: 'API không trả về dữ liệu hợp lệ.' };
+
+  result.meta = Object.assign({}, result.meta || {}, {
+    requestId: requestId,
+    serverMs: Math.max(0, Date.now() - startedAt)
+  });
+
+  return result;
+}
+
+function classifyApiError_(err) {
+  const rawMessage = err && err.message ? String(err.message) : String(err || 'Unknown error');
+  const normalized = rawMessage.toLowerCase();
+  const transientSignals = [
+    'service invoked too many times',
+    'too many scripts',
+    'quota',
+    'timed out',
+    'timeout',
+    'exceeded maximum execution',
+    'internal error',
+    'server error',
+    'temporarily unavailable',
+    'service unavailable',
+    'service error',
+    'try again later'
+  ];
+  const retryable = transientSignals.some(function(signal) {
+    return normalized.indexOf(signal) !== -1;
+  });
+
+  if (retryable) {
+    return {
+      code: 'TEMPORARY_BACKEND_ERROR',
+      retryable: true,
+      message: 'Hệ thống đang có nhiều lượt truy cập. Vui lòng chờ vài giây để hệ thống tự thử lại.',
+      rawMessage: rawMessage
+    };
+  }
+
+  return {
+    code: 'BACKEND_ERROR',
+    retryable: false,
+    message: rawMessage,
+    rawMessage: rawMessage
+  };
+}
+
+function apiOutput_(obj, callback) {
+  callback = clean_(callback);
+
+  if (callback) {
+    const validCallback = /^[A-Za-z_$][0-9A-Za-z_$]*(\.[A-Za-z_$][0-9A-Za-z_$]*)*$/.test(callback);
+
+    if (!validCallback) {
+      return ContentService
+        .createTextOutput(JSON.stringify({
+          ok: false,
+          message: 'Callback không hợp lệ.'
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    return ContentService
+      .createTextOutput(callback + '(' + JSON.stringify(obj) + ');')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/************************************************************
+ * LOGIN / REFRESH
+ ************************************************************/
+function loginStudent(studentId, accessCode) {
+  return loginStudentInternal_(studentId, accessCode, false);
+}
+
+function loginStudentInternal_(studentId, accessCode, forceRefresh) {
+  studentId = normalizeStudentId_(studentId);
+  accessCode = clean_(accessCode);
+
+  if (!studentId) {
+    return {
+      ok: false,
+      message: 'Vui lòng nhập mã học viên.'
+    };
+  }
+
+  if (accessCode !== CFG.DEFAULT_ACCESS_CODE) {
+    return {
+      ok: false,
+      message: 'Mật khẩu không đúng.'
+    };
+  }
+
+  if (!isStudentCode_(studentId)) {
+    return {
+      ok: false,
+      message: 'Mã học viên không đúng định dạng: ' + studentId
+    };
+  }
+
+  if (!forceRefresh) {
+    const cachedResponse = getCachedPortalResponse_(studentId);
+    if (cachedResponse) {
+      cachedResponse.cacheHit = true;
+      return cachedResponse;
+    }
+  }
+
+  const profileFile = findStudentProfileFileByDrive_(studentId);
+  const workbook = readStudentProfileWorkbook_(profileFile);
+  const data = buildPortalData_(studentId, workbook, profileFile);
+
+  const response = {
+    ok: true,
+    message: 'Đăng nhập thành công.',
+    cacheHit: false,
+    profileFile: {
+      id: profileFile.getId(),
+      name: profileFile.getName(),
+      url: profileFile.getUrl(),
+      mimeType: profileFile.getMimeType()
+    },
+
+    // Frontend EDUX gốc đọc res.data.
+    data: data,
+
+    // Giữ thêm key student để debug/API bên ngoài dễ xem.
+    student: data.student
+  };
+
+  putCachedPortalResponse_(studentId, response);
+  return response;
+}
+
+function getPortalDataCacheKey_(studentId) {
+  return 'portal_data_v2_' + normalizeStudentId_(studentId);
+}
+
+function getCachedPortalResponse_(studentId) {
+  try {
+    const cached = CacheService.getScriptCache().get(getPortalDataCacheKey_(studentId));
+    if (!cached) return null;
+
+    const parsed = JSON.parse(cached);
+    return parsed && parsed.ok ? parsed : null;
+  } catch (err) {
+    console.warn('Không đọc được portal cache cho ' + studentId + ': ' + String(err));
+    return null;
+  }
+}
+
+function putCachedPortalResponse_(studentId, response) {
+  try {
+    CacheService.getScriptCache().put(
+      getPortalDataCacheKey_(studentId),
+      JSON.stringify(response),
+      CFG.PORTAL_DATA_CACHE_SECONDS
+    );
+  } catch (err) {
+    // Cache chỉ là lớp tăng tốc; cache đầy/response lớn không được làm hỏng đăng nhập.
+    console.warn('Không ghi được portal cache cho ' + studentId + ': ' + String(err));
+  }
+}
+
+/************************************************************
+ * GAME TRẮC NGHIỆM SSO (JWT HS256)
+ ************************************************************/
+function createGameSsoTokenResponse_(studentId, accessCode, displayName) {
+  studentId = normalizeStudentId_(studentId);
+  accessCode = clean_(accessCode);
+  displayName = clean_(displayName);
+
+  if (!studentId) {
+    return { ok: false, message: 'Vui lòng nhập mã học viên.' };
+  }
+  if (accessCode !== CFG.DEFAULT_ACCESS_CODE) {
+    return { ok: false, message: 'Mật khẩu không đúng.' };
+  }
+  if (!isStudentCode_(studentId)) {
+    return { ok: false, message: 'Mã học viên không đúng định dạng: ' + studentId };
+  }
+  if (!CFG.GAME_SSO_SECRET || String(CFG.GAME_SSO_SECRET).length < 16) {
+    return { ok: false, message: 'Chưa cấu hình GAME_SSO_SECRET trên Apps Script.' };
+  }
+
+  // Xác nhận học viên tồn tại trong Drive trước khi phát token.
+  findStudentProfileFileByDrive_(studentId);
+
+  const name = displayName || studentId;
+  const token = signGameSsoJwt_({
+    sid: studentId,
+    name: name,
+    pwd: accessCode
+  });
+
+  const base = String(CFG.QUIZ_GAME_BASE_URL || '').replace(/\/+$/, '');
+  const url = base + '/api/auth/portal-sso?token=' + encodeURIComponent(token);
+
+  return {
+    ok: true,
+    token: token,
+    url: url,
+    expiresIn: CFG.GAME_SSO_TOKEN_TTL_SECONDS || 180
+  };
+}
+
+function signGameSsoJwt_(claims) {
+  const now = Math.floor(Date.now() / 1000);
+  const ttl = Number(CFG.GAME_SSO_TOKEN_TTL_SECONDS) || 180;
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const payload = {
+    sid: String(claims.sid || ''),
+    name: String(claims.name || claims.sid || ''),
+    pwd: String(claims.pwd || ''),
+    iat: now,
+    exp: now + ttl
+  };
+
+  const encHeader = base64UrlEncodeString_(JSON.stringify(header));
+  const encPayload = base64UrlEncodeString_(JSON.stringify(payload));
+  const signingInput = encHeader + '.' + encPayload;
+  const sigBytes = Utilities.computeHmacSha256Signature(
+    signingInput,
+    String(CFG.GAME_SSO_SECRET),
+    Utilities.Charset.UTF_8
+  );
+  return signingInput + '.' + base64UrlEncodeBytes_(sigBytes);
+}
+
+function base64UrlEncodeString_(text) {
+  return Utilities.base64EncodeWebSafe(String(text), Utilities.Charset.UTF_8).replace(/=+$/, '');
+}
+
+function base64UrlEncodeBytes_(bytes) {
+  return Utilities.base64EncodeWebSafe(bytes).replace(/=+$/, '');
+}
+
+function refreshStudentData(studentId, accessCode) {
+  return loginStudentInternal_(studentId, accessCode, true);
+}
+
+function apiFindProfile_(studentId) {
+  studentId = normalizeStudentId_(studentId);
+
+  if (!studentId) {
+    return {
+      ok: false,
+      message: 'Thiếu mã học viên.'
+    };
+  }
+
+  const file = findStudentProfileFileByDrive_(studentId);
+
+  return {
+    ok: true,
+    message: 'Đã tìm thấy file profile.',
+    file: {
+      id: file.getId(),
+      name: file.getName(),
+      url: file.getUrl(),
+      mimeType: file.getMimeType()
+    }
+  };
+}
+
+/************************************************************
+ * FIND STUDENT PROFILE FILE IN DRIVE ROOT
+ ************************************************************/
+function findStudentProfileFileByDrive_(studentId) {
+  studentId = normalizeStudentId_(studentId);
+
+  if (!studentId) {
+    throw new Error('Thiếu mã học viên để tìm hồ sơ.');
+  }
+
+  const cache = CacheService.getScriptCache();
+  const cacheKey = 'profile_file_id_' + studentId;
+  const cachedFileId = cache.get(cacheKey);
+
+  if (cachedFileId) {
+    try {
+      return DriveApp.getFileById(cachedFileId);
+    } catch (err) {
+      cache.remove(cacheKey);
+    }
+  }
+
+  const persistedFileId = getPersistedProfileFileId_(studentId);
+  if (persistedFileId) {
+    try {
+      const persistedFile = DriveApp.getFileById(persistedFileId);
+      cache.put(cacheKey, persistedFileId, CFG.PROFILE_FILE_CACHE_SECONDS);
+      return persistedFile;
+    } catch (err) {
+      forgetPersistedProfileFileId_(studentId);
+    }
+  }
+
+  const activeFolder = getProfileActiveFolder_();
+
+  // Ví dụ WeWIN01-HV-1602 -> ưu tiên folder 1500-1999.
+  const targetRangeFolder = findRangeFolderForStudent_(activeFolder, studentId);
+
+  if (targetRangeFolder) {
+    const fileInRange = findFileContainsStudentIdRecursive_(targetRangeFolder, studentId, 3);
+
+    if (fileInRange) {
+      rememberProfileFileId_(studentId, fileInRange.getId());
+      return fileInRange;
+    }
+  }
+
+  // Fallback: quét toàn bộ Active.
+  const file = findFileContainsStudentIdRecursive_(activeFolder, studentId, 5);
+
+  if (file) {
+    rememberProfileFileId_(studentId, file.getId());
+    return file;
+  }
+
+  throw new Error(
+    'Không tìm thấy file hồ sơ cho mã học viên: ' +
+    studentId +
+    ' trong folder ROOT / ' +
+    CFG.PROFILE_PATH.join(' / ')
+  );
+}
+
+function getProfileFilePropertyKey_(studentId) {
+  return CFG.PROFILE_FILE_PROPERTY_PREFIX + normalizeStudentId_(studentId);
+}
+
+function getPersistedProfileFileId_(studentId) {
+  try {
+    return clean_(PropertiesService.getScriptProperties().getProperty(
+      getProfileFilePropertyKey_(studentId)
+    ));
+  } catch (err) {
+    console.warn('Không đọc được profile index cho ' + studentId + ': ' + String(err));
+    return '';
+  }
+}
+
+function rememberProfileFileId_(studentId, fileId) {
+  const normalizedStudentId = normalizeStudentId_(studentId);
+  const normalizedFileId = clean_(fileId);
+  if (!normalizedStudentId || !normalizedFileId) return;
+
+  try {
+    CacheService.getScriptCache().put(
+      'profile_file_id_' + normalizedStudentId,
+      normalizedFileId,
+      CFG.PROFILE_FILE_CACHE_SECONDS
+    );
+  } catch (cacheErr) {
+    console.warn('Không ghi được profile cache cho ' + normalizedStudentId + ': ' + String(cacheErr));
+  }
+
+  try {
+    PropertiesService.getScriptProperties().setProperty(
+      getProfileFilePropertyKey_(normalizedStudentId),
+      normalizedFileId
+    );
+  } catch (propertyErr) {
+    console.warn('Không ghi được profile index cho ' + normalizedStudentId + ': ' + String(propertyErr));
+  }
+}
+
+function forgetPersistedProfileFileId_(studentId) {
+  try {
+    PropertiesService.getScriptProperties().deleteProperty(
+      getProfileFilePropertyKey_(studentId)
+    );
+  } catch (err) {
+    console.warn('Không xóa được profile index cũ cho ' + studentId + ': ' + String(err));
+  }
+}
+
+function getProfileActiveFolder_() {
+  const folderCache = CacheService.getScriptCache();
+  let cachedFolderId = '';
+
+  try {
+    cachedFolderId = clean_(folderCache.get(CFG.PROFILE_ACTIVE_FOLDER_PROPERTY_KEY));
+  } catch (cacheErr) {}
+
+  if (!cachedFolderId) {
+    try {
+      cachedFolderId = clean_(PropertiesService.getScriptProperties().getProperty(
+        CFG.PROFILE_ACTIVE_FOLDER_PROPERTY_KEY
+      ));
+    } catch (propertyErr) {}
+  }
+
+  if (cachedFolderId) {
+    try {
+      const cachedFolder = DriveApp.getFolderById(cachedFolderId);
+      folderCache.put(
+        CFG.PROFILE_ACTIVE_FOLDER_PROPERTY_KEY,
+        cachedFolderId,
+        CFG.PROFILE_FILE_CACHE_SECONDS
+      );
+      return cachedFolder;
+    } catch (staleFolderErr) {
+      try {
+        PropertiesService.getScriptProperties().deleteProperty(
+          CFG.PROFILE_ACTIVE_FOLDER_PROPERTY_KEY
+        );
+      } catch (deleteErr) {}
+    }
+  }
+
+  let folder = DriveApp.getFolderById(CFG.PROFILE_ROOT_FOLDER_ID);
+
+  for (let i = 0; i < CFG.PROFILE_PATH.length; i++) {
+    const folderName = CFG.PROFILE_PATH[i];
+    folder = getChildFolderByNameIgnoreCase_(folder, folderName);
+
+    if (!folder) {
+      throw new Error('Không tìm thấy folder trong profile path: ' + folderName);
+    }
+  }
+
+  try {
+    folderCache.put(
+      CFG.PROFILE_ACTIVE_FOLDER_PROPERTY_KEY,
+      folder.getId(),
+      CFG.PROFILE_FILE_CACHE_SECONDS
+    );
+    PropertiesService.getScriptProperties().setProperty(
+      CFG.PROFILE_ACTIVE_FOLDER_PROPERTY_KEY,
+      folder.getId()
+    );
+  } catch (cacheErr) {
+    console.warn('Không lưu được Active folder cache: ' + String(cacheErr));
+  }
+
+  return folder;
+}
+
+function getChildFolderByNameIgnoreCase_(parentFolder, targetName) {
+  targetName = normalizeVi_(targetName);
+
+  const folders = parentFolder.getFolders();
+
+  while (folders.hasNext()) {
+    const folder = folders.next();
+    const name = normalizeVi_(folder.getName());
+
+    if (name === targetName) {
+      return folder;
+    }
+  }
+
+  return null;
+}
+
+function findRangeFolderForStudent_(activeFolder, studentId) {
+  const number = extractLastNumber_(studentId);
+
+  if (!number) return null;
+
+  const folders = activeFolder.getFolders();
+
+  while (folders.hasNext()) {
+    const folder = folders.next();
+    const name = clean_(folder.getName());
+    const match = name.match(/^(\d+)\s*-\s*(\d+)$/);
+
+    if (!match) continue;
+
+    const min = Number(match[1]);
+    const max = Number(match[2]);
+
+    if (number >= min && number <= max) {
+      return folder;
+    }
+  }
+
+  return null;
+}
+
+function findFileContainsStudentIdRecursive_(folder, studentId, maxDepth) {
+  const normalizedStudentId = normalizeStudentId_(studentId);
+
+  const files = folder.getFiles();
+
+  while (files.hasNext()) {
+    const file = files.next();
+    const normalizedFileName = normalizeStudentId_(file.getName());
+
+    // Tên file dạng WeWIN01__STUDENT__WeWIN01-HV-1602 vẫn match vì có chứa mã HV.
+    if (normalizedFileName.indexOf(normalizedStudentId) !== -1) {
+      return file;
+    }
+  }
+
+  if (maxDepth <= 0) return null;
+
+  const folders = folder.getFolders();
+
+  while (folders.hasNext()) {
+    const subFolder = folders.next();
+    const found = findFileContainsStudentIdRecursive_(subFolder, studentId, maxDepth - 1);
+
+    if (found) return found;
+  }
+
+  return null;
+}
+
+/************************************************************
+ * READ PROFILE WORKBOOK
+ ************************************************************/
+function readStudentProfileWorkbook_(profileFile) {
+  let ss;
+
+  try {
+    ss = SpreadsheetApp.openById(profileFile.getId());
+  } catch (err) {
+    throw new Error(
+      'Tìm thấy file nhưng không mở được bằng SpreadsheetApp. ' +
+      'File có thể không phải Google Sheet hoặc tài khoản chạy script chưa có quyền. ' +
+      'Tên file: ' + profileFile.getName() +
+      '. Lỗi: ' + (err && err.message ? err.message : String(err))
+    );
+  }
+
+  const workbook = {
+    spreadsheetId: ss.getId(),
+    spreadsheetName: ss.getName(),
+    spreadsheetUrl: ss.getUrl(),
+    sheets: {}
+  };
+
+  const sheetLookup = buildSheetLookup_(ss.getSheets());
+  const sheetKeys = Array.isArray(CFG.PORTAL_READ_SHEET_KEYS)
+    ? CFG.PORTAL_READ_SHEET_KEYS
+    : Object.keys(CFG.SHEETS);
+
+  sheetKeys.forEach(function(key) {
+    const possibleNames = CFG.SHEETS[key];
+    const sheet = getSheetByPossibleNames_(sheetLookup, possibleNames);
+
+    if (!sheet) {
+      workbook.sheets[key] = {
+        ok: false,
+        sheetName: Array.isArray(possibleNames) ? possibleNames.join(' / ') : String(possibleNames),
+        values: []
+      };
+      return;
+    }
+
+    workbook.sheets[key] = readSheetAsValues_(sheet);
+  });
+
+  return workbook;
+}
+
+function buildSheetLookup_(sheets) {
+  const lookup = {};
+
+  (sheets || []).forEach(function(sheet) {
+    const normalizedName = normalizeVi_(sheet.getName());
+    if (normalizedName && !lookup[normalizedName]) {
+      lookup[normalizedName] = sheet;
+    }
+  });
+
+  return lookup;
+}
+
+function getSheetByPossibleNames_(sheetLookup, names) {
+  names = Array.isArray(names) ? names : [names];
+
+  for (let i = 0; i < names.length; i++) {
+    const sh = sheetLookup[normalizeVi_(names[i])];
+    if (sh) return sh;
+  }
+
+  return null;
+}
+
+function readSheetAsValues_(sheet) {
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+
+  if (lastRow < 1 || lastCol < 1) {
+    return {
+      ok: true,
+      sheetName: sheet.getName(),
+      rows: 0,
+      cols: 0,
+      values: []
+    };
+  }
+
+  // Sheet History được đọc đầy đủ để web hiển thị toàn bộ dữ liệu đã archive.
+  const isHistorySheet = /^history(?:[- _]|$)/i.test(sheet.getName());
+  const numRows = isHistorySheet ? lastRow : Math.min(lastRow, CFG.MAX_ROWS_PER_SHEET);
+  const maxColumns = Number(CFG.MAX_COLUMNS_PER_SHEET) || lastCol;
+  const numCols = Math.min(lastCol, maxColumns);
+  const values = sheet.getRange(1, 1, numRows, numCols).getDisplayValues();
+
+  return {
+    ok: true,
+    sheetName: sheet.getName(),
+    rows: numRows,
+    cols: numCols,
+    truncatedColumns: lastCol > numCols,
+    values: values
+  };
+}
+
+/************************************************************
+ * BUILD FRONTEND DATA
+ ************************************************************/
+function buildPortalData_(studentId, workbook, profileFile) {
+  const sheets = workbook.sheets || {};
+
+  const overviewRows = getSheetRows_(sheets, 'OVERVIEW');
+  const dailyRows = getSheetRows_(sheets, 'DAILY');
+  const historyDailyRows = getSheetRows_(sheets, 'HISTORY_DAILY');
+  const attendanceRows = getSheetRows_(sheets, 'ATTENDANCE');
+  const historyAttendanceRows = getSheetRows_(sheets, 'HISTORY_ATTENDANCE');
+  const reportRows = getSheetRows_(sheets, 'REPORT');
+  const minitestLedgerRows = getSheetRows_(sheets, 'MINITEST_LEDGER');
+  const lessonRows = getSheetRows_(sheets, 'LESSON');
+  const historyRows = getSheetRows_(sheets, 'HISTORY');
+  const student = buildStudentInfo_(studentId, profileFile, overviewRows, dailyRows, attendanceRows, reportRows);
+  const feeInfo = buildFeeInfo_(overviewRows);
+
+  // Live được ghép trước nên thắng khi cùng ngày cũng xuất hiện trong History.
+  const dailyScores = mergePortalItemsLiveFirst_(
+    parseDailyScores_(dailyRows, studentId),
+    parseDailyScores_(historyDailyRows, studentId)
+  );
+  const attendance = mergePortalItemsLiveFirst_(
+    parseAttendance_(attendanceRows, studentId),
+    parseAttendance_(historyAttendanceRows, studentId)
+  );
+  const baoBai = buildBaoBaiTimeline_(lessonRows, historyRows, studentId);
+  // Kết quả kiểm tra trên Parent Portal chỉ lấy từ sheet "Báo cáo cá nhân"
+  // để tránh đọc nhầm dữ liệu khác trong sheet "Điểm".
+  const ledgerMocktests = parseMinitestLedger_(minitestLedgerRows, studentId);
+  const semanticMocktests = parseMocktestsV2_(reportRows, studentId);
+  const reportMocktests = semanticMocktests.length
+    ? semanticMocktests
+    : parseMocktests_(reportRows, studentId);
+  const mocktests = mergeMocktestSources_(ledgerMocktests, reportMocktests);
+
+  const reportText = parseReportText_(reportRows);
+  const metrics = buildMetrics_(attendance, dailyScores);
+
+  return {
+    student: student,
+    updatedAt: Utilities.formatDate(new Date(), CFG.TIMEZONE, 'dd/MM/yyyy HH:mm:ss'),
+    feeInfo: feeInfo,
+    metrics: metrics,
+    dailyScores: dailyScores,
+    attendance: attendance,
+    baoBai: baoBai,
+    mocktests: mocktests,
+    reportText: reportText,
+    workbook: {
+      spreadsheetId: workbook.spreadsheetId,
+      spreadsheetName: workbook.spreadsheetName,
+      spreadsheetUrl: workbook.spreadsheetUrl
+    }
+  };
+}
+
+function getSheetRows_(sheets, key) {
+  const obj = sheets && sheets[key];
+  if (!obj || !Array.isArray(obj.values)) return [];
+  return obj.values || [];
+}
+
+/************************************************************
+ * STUDENT / FEE
+ ************************************************************/
+function buildStudentInfo_(studentId, profileFile, overviewRows, dailyRows, attendanceRows, reportRows) {
+  const explicitOverviewName = findLabelValue_(
+    overviewRows,
+    ['họ tên', 'tên học viên', 'student name', 'name']
+  );
+
+  // ƯU TIÊN CHÍNH: lấy tên lớn ở đầu sheet "Tổng quan".
+  // Layout hiện tại: tên học viên nằm ở vùng header bên phải, ví dụ K1:U2.
+  // Ví dụ: Trần Lê Phương Vy.
+  const fromOverviewHeader =
+    findStudentNameInOverviewHeader_(overviewRows, studentId) ||
+    findBigNameInOverview_(overviewRows);
+
+  const fromAnySheetName =
+    findNameBesideStudentId_(dailyRows, studentId) ||
+    findNameBesideStudentId_(attendanceRows, studentId) ||
+    findNameBesideStudentId_(reportRows, studentId);
+
+  // Chỉ dùng "Báo cáo cá nhân" làm fallback cuối cùng,
+  // tránh lấy nhầm tiêu đề "BÁO CÁO CÁ NHÂN CHO" làm tên học viên.
+  const fromReportHeadline = findStudentNameInReport_(reportRows);
+
+  const name =
+    firstValidStudentName_([
+      explicitOverviewName,
+      fromOverviewHeader,
+      fromAnySheetName,
+      fromReportHeadline
+    ]) || studentId;
+
+  const className =
+    findLabelValue_(overviewRows, ['lớp', 'tên lớp', 'class', 'class name']) ||
+    findLabelValue_(reportRows, ['tên lớp', 'class']) ||
+    '';
+
+  const teacher =
+    findLabelValue_(overviewRows, ['giáo viên', 'gv phụ trách', 'teacher', 'tutor']) ||
+    findLabelValue_(reportRows, ['giáo viên', 'gv phụ trách', 'teacher']) ||
+    '';
+
+  const dob =
+    findLabelValue_(overviewRows, ['ngày sinh', 'sinh nhật', 'dob', 'birthday']) ||
+    '';
+
+  return {
+    name: name,
+    studentName: name,
+    id: studentId,
+    studentId: studentId,
+    className: className,
+    teacher: teacher,
+    dob: dob
+  };
+}
+
+function buildFeeInfo_(overviewRows) {
+  return {
+    feeStatus: findLabelValue_(overviewRows, ['tình trạng học phí', 'tình hình báo phí', 'học phí', 'fee status']) || '--',
+    startDate: findLabelValue_(overviewRows, ['ngày bắt đầu', 'start date']) || '--',
+    endDate: findLabelValue_(overviewRows, ['ngày kết thúc', 'end date']) || '--'
+  };
+}
+
+function findStudentNameInOverviewHeader_(rows, studentId) {
+  const targetStudentId = normalizeStudentId_(studentId);
+
+  if (!rows || !rows.length) return '';
+
+  // Trường hợp layout giống ảnh:
+  // dòng đầu có chữ "TỔNG QUAN", tên học viên nằm ở ô merged bên phải, ví dụ K1:U2.
+  for (let r = 0; r < Math.min(rows.length, 8); r++) {
+    const row = rows[r] || [];
+
+    for (let c = 0; c < row.length; c++) {
+      const marker = normalizeVi_(row[c]);
+
+      if (marker.indexOf('tong quan') === -1) continue;
+
+      for (let k = c + 1; k < row.length; k++) {
+        const text = clean_(row[k]);
+
+        if (!text) continue;
+        if (targetStudentId && normalizeStudentId_(text).indexOf(targetStudentId) !== -1) continue;
+        if (isLikelyStudentName_(text)) return text;
+      }
+    }
+  }
+
+  // Fallback: quét vùng đầu sheet Tổng quan, ưu tiên các ô bên phải
+  // vì tên lớn thường nằm ở khu vực header bên phải.
+  const candidates = [];
+
+  for (let r2 = 0; r2 < Math.min(rows.length, 8); r2++) {
+    const row2 = rows[r2] || [];
+
+    for (let c2 = 0; c2 < row2.length; c2++) {
+      const text2 = clean_(row2[c2]);
+
+      if (!text2) continue;
+      if (targetStudentId && normalizeStudentId_(text2).indexOf(targetStudentId) !== -1) continue;
+      if (!isLikelyStudentName_(text2)) continue;
+
+      candidates.push({
+        text: text2,
+        row: r2,
+        col: c2
+      });
+    }
+  }
+
+  candidates.sort(function(a, b) {
+    // Ưu tiên ô ở phía bên phải và ở gần đầu sheet.
+    if (b.col !== a.col) return b.col - a.col;
+    return a.row - b.row;
+  });
+
+  return candidates.length ? candidates[0].text : '';
+}
+
+function findBigNameInOverview_(rows) {
+  const preferred = [];
+  const fallback = [];
+
+  for (let r = 0; r < rows.length; r++) {
+    for (let c = 0; c < (rows[r] || []).length; c++) {
+      const text = clean_(rows[r][c]);
+
+      if (!isLikelyStudentName_(text)) continue;
+
+      if (/\(.+\)/.test(text)) {
+        preferred.push(text);
+      } else {
+        fallback.push(text);
+      }
+    }
+  }
+
+  return preferred[0] || fallback[0] || '';
+}
+
+function findStudentNameInReport_(rows) {
+  const preferred = [];
+  const fallback = [];
+
+  for (let r = 0; r < rows.length; r++) {
+    for (let c = 0; c < (rows[r] || []).length; c++) {
+      const text = clean_(rows[r][c]);
+
+      if (!isLikelyStudentName_(text)) continue;
+
+      // Dòng tên trong báo cáo hiện thường có dạng:
+      // "Nguyễn Lý Hải (Mẹ Mã Ngọc Anh)".
+      if (/\(.+\)/.test(text)) {
+        preferred.push(text);
+        continue;
+      }
+
+      // Chỉ lấy fallback ngắn, không lấy câu văn báo cáo dài.
+      if (text.length <= 60) {
+        fallback.push(text);
+      }
+    }
+  }
+
+  return preferred[0] || fallback[0] || '';
+}
+
+function firstValidStudentName_(candidates) {
+  candidates = Array.isArray(candidates) ? candidates : [];
+
+  for (let i = 0; i < candidates.length; i++) {
+    const value = clean_(candidates[i]);
+
+    if (isLikelyStudentName_(value)) {
+      return value;
+    }
+  }
+
+  return '';
+}
+
+function isLikelyStudentName_(value) {
+  const text = clean_(value);
+  const n = normalizeVi_(text);
+
+  if (!text) return false;
+  if (text.length < 4 || text.length > 120) return false;
+  if (extractStudentIdFromText_(text)) return false;
+  if (isDateLike_(text)) return false;
+  if (isScoreValue_(text)) return false;
+
+  const rejectedExact = {
+    'tong quan': true,
+    'overview': true,
+    'ho so': true,
+    'ho so hoc vien': true,
+    'diem danh': true,
+    'bao bai': true,
+    'diem': true,
+    'diem & bao cao': true,
+    'bao cao': true,
+    'bao cao ca nhan': true,
+    'ket qua kiem tra': true,
+    'thong tin ca nhan': true,
+    'ghi danh & hoc phi': true,
+    'hoc vien dang theo doi': true,
+    'diem so theo buoi hoc': true,
+    'lich su chuyen can': true,
+    'nhat ky hoc tap': true,
+    'loi nhan tu giao vien': true,
+    'but pha tieng anh': true,
+    'vuon tam the gioi': true,
+    'wewin education': true,
+    'parent portal': true
+  };
+
+  if (rejectedExact[n]) return false;
+
+  const rejectedContains = [
+    'da em chao quy ph',
+    'em lien lac de gui bao cao',
+    'diem thi cuoi ky',
+    'bao cao tinh hinh hoc tap',
+    'bao cao ca nhan cho',
+    'bao cao ca nhan',
+    'hoc vien dang theo doi',
+    'ket qua kiem tra',
+    'loi nhan tu giao vien',
+    'ky nang nghe',
+    'ky nang noi',
+    'ky nang doc',
+    'bai tap ve nha',
+    'tham gia lop hoc',
+    'wewin xin chan thanh cam on',
+    'but pha tieng anh',
+    'vuon tam the gioi',
+    'wewin education',
+    'parent portal'
+  ];
+
+  for (let i = 0; i < rejectedContains.length; i++) {
+    if (n.indexOf(rejectedContains[i]) !== -1) return false;
+  }
+
+  if (/^(ten lop|lop hoc|gv phu trach|giao vien|ma hoc vien|ma hv|ngay bat dau|tinh trang hoc phi)\b/.test(n)) {
+    return false;
+  }
+
+  const plain = text
+    .replace(/[()]/g, ' ')
+    .replace(/[.,;:!?/\\|-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const words = plain ? plain.split(' ') : [];
+
+  if (words.length < 2 || words.length > 16) return false;
+  if (!/[A-Za-zÀ-ỹ]/.test(text)) return false;
+
+  return true;
+}
+
+function findNameBesideStudentId_(rows, studentId) {
+  const target = normalizeStudentId_(studentId);
+
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const rowText = normalizeStudentId_(row.map(clean_).join(' '));
+
+    if (rowText.indexOf(target) === -1) continue;
+
+    // Thường B là Họ tên nếu A là Mã HV.
+    for (let c = 0; c < row.length; c++) {
+      const cell = clean_(row[c]);
+      if (!cell) continue;
+
+      if (normalizeStudentId_(cell).indexOf(target) !== -1) {
+        for (let k = c + 1; k < Math.min(row.length, c + 4); k++) {
+          const maybeName = clean_(row[k]);
+
+          if (isLikelyStudentName_(maybeName)) {
+            return maybeName;
+          }
+        }
+      }
+    }
+  }
+
+  return '';
+}
+
+/************************************************************
+ * DAILY DATA
+ *
+ * Hỗ trợ dạng ngang:
+ * Mã HV | Họ Tên | 25/04/2026 | 26/04/2026
+ * ID    | Name   | 9          | 8
+ ************************************************************/
+
+function parseDailyScores_(rows, studentId) {
+  const out = [];
+
+  if (!rows || !rows.length) return out;
+
+  const targetStudentId = normalizeStudentId_(studentId);
+  const datePositions = findDatePositions_(rows);
+
+  datePositions.forEach(function(pos) {
+    // Lấy nguyên nội dung ô Daily data, không bắt buộc phải là số thuần.
+    // Ví dụ: "10 bé thuộc bài tiếp thu bài tốt" vẫn được đưa lên web.
+    const value = findValueBelowDate_(rows, pos.r, pos.c, targetStudentId, isDailyScoreCell_);
+
+    if (!value) return;
+
+    out.push(buildDailyScoreItem_(pos.date, value));
+  });
+
+  if (out.length) {
+    return sortByDateDesc_(dedupeByDate_(out));
+  }
+
+  // Fallback dạng mỗi dòng một ngày.
+  rows.forEach(function(row) {
+    const cells = (row || []).map(clean_);
+    const date = cells.find(isDateLike_);
+
+    if (!date) return;
+
+    const candidates = cells.filter(function(cell) {
+      return cell !== date && isDailyScoreCell_(cell);
+    });
+
+    if (!candidates.length) return;
+
+    // Ưu tiên ô có điểm số 0-10, nếu không có thì lấy ô text cuối cùng.
+    const withScore = candidates.filter(function(cell) {
+      return parseDailyScoreText_(cell).scoreNumber !== '';
+    });
+
+    const value = withScore.length ? withScore[withScore.length - 1] : candidates[candidates.length - 1];
+
+    out.push(buildDailyScoreItem_(date, value));
+  });
+
+  return sortByDateDesc_(dedupeByDate_(out));
+}
+
+function buildDailyScoreItem_(date, value) {
+  const text = clean_(value);
+  const parsed = parseDailyScoreText_(text);
+
+  return {
+    date: date,
+    rawScore: text,                 // giữ nguyên nội dung ô trong Google Sheet
+    score: parsed.score || text,    // phần điểm để hiển thị nổi bật
+    scoreNumber: parsed.scoreNumber,// số dùng để tính Điểm TB
+    scoreText: parsed.comment,      // phần nhận xét sau điểm
+    comment: parsed.comment,
+    displayText: text
+  };
+}
+
+function isDailyScoreCell_(value) {
+  const text = clean_(value);
+
+  if (!text) return false;
+  if (isDateLike_(text)) return false;
+
+  const n = normalizeVi_(text);
+
+  // Tránh lấy nhầm các ô tiêu đề/thông tin học viên khi chạy fallback.
+  const rejected = {
+    'ma hv': true,
+    'ma hoc vien': true,
+    'student id': true,
+    'id': true,
+    'ho ten': true,
+    'ten hoc vien': true,
+    'student name': true,
+    'name': true,
+    'daily data': true,
+    'diem': true,
+    'score': true
+  };
+
+  if (rejected[n]) return false;
+
+  return true;
+}
+
+function parseDailyScoreText_(value) {
+  const text = clean_(value);
+
+  if (!text) {
+    return {
+      score: '',
+      scoreNumber: '',
+      comment: ''
+    };
+  }
+
+  // Tìm số điểm đầu tiên nằm trong khoảng 0-10, kể cả dạng "10/10", "8,5", "8.5".
+  const matches = text.match(/\d{1,2}(?:[,.]\d+)?(?:\s*\/\s*10)?/g) || [];
+
+  for (let i = 0; i < matches.length; i++) {
+    const rawMatch = matches[i];
+    const numberText = rawMatch.replace(/\s*\/\s*10/g, '').replace(',', '.');
+    const n = Number(numberText);
+
+    if (isNaN(n) || n < 0 || n > 10) continue;
+
+    const start = text.indexOf(rawMatch);
+    const end = start + rawMatch.length;
+    const comment = clean_(
+      (text.slice(0, start) + ' ' + text.slice(end))
+        .replace(/^[\s:：\-–—|]+|[\s:：\-–—|]+$/g, '')
+    );
+
+    return {
+      score: rawMatch.replace(/\s*\/\s*10/g, ''),
+      scoreNumber: String(n),
+      comment: comment
+    };
+  }
+
+  // Nếu giáo viên chỉ ghi nhận xét không có điểm, vẫn hiển thị nguyên text.
+  return {
+    score: text,
+    scoreNumber: '',
+    comment: ''
+  };
+}
+
+/************************************************************
+ * ATTENDANCE / DIEMDANH
+ *
+ * Hỗ trợ dạng ngang:
+ * Mã HV | Họ Tên | 24/04/2026 | 25/04/2026
+ * ID    | Name   | Đúng giờ   | Đúng giờ
+ ************************************************************/
+function parseAttendance_(rows, studentId) {
+  const out = [];
+
+  if (!rows || !rows.length) return out;
+
+  const targetStudentId = normalizeStudentId_(studentId);
+  const datePositions = findDatePositions_(rows);
+
+  datePositions.forEach(function(pos) {
+    const status = findValueBelowDate_(rows, pos.r, pos.c, targetStudentId, isAttendanceStatus_);
+
+    if (!status) return;
+
+    out.push({
+      date: pos.date,
+      status: status
+    });
+  });
+
+  if (out.length) {
+    return sortByDateDesc_(dedupeByDate_(out));
+  }
+
+  // Fallback dạng mỗi dòng một ngày.
+  rows.forEach(function(row) {
+    const cells = (row || []).map(clean_);
+    const date = cells.find(isDateLike_);
+
+    if (!date) return;
+
+    const status = cells.find(isAttendanceStatus_);
+
+    if (!status) return;
+
+    out.push({
+      date: date,
+      status: status
+    });
+  });
+
+  return sortByDateDesc_(dedupeByDate_(out));
+}
+
+function findDatePositions_(rows) {
+  const positions = [];
+
+  rows.forEach(function(row, r) {
+    (row || []).forEach(function(cell, c) {
+      const text = clean_(cell);
+
+      if (!isDateLike_(text)) return;
+
+      positions.push({
+        r: r,
+        c: c,
+        date: text
+      });
+    });
+  });
+
+  return positions;
+}
+
+function findValueBelowDate_(rows, headerRowIndex, colIndex, targetStudentId, validator) {
+  // Ưu tiên dòng có đúng mã học viên.
+  if (targetStudentId) {
+    for (let r = headerRowIndex + 1; r < Math.min(rows.length, headerRowIndex + 20); r++) {
+      const row = rows[r] || [];
+      const rowText = normalizeStudentId_(row.map(clean_).join(' '));
+
+      if (rowText.indexOf(targetStudentId) === -1) continue;
+
+      const value = clean_(row[colIndex]);
+
+      if (value && validator(value)) return value;
+    }
+  }
+
+  // Fallback: lấy dòng đầu tiên dưới header có dữ liệu hợp lệ ở đúng cột.
+  for (let r2 = headerRowIndex + 1; r2 < Math.min(rows.length, headerRowIndex + 20); r2++) {
+    const value = clean_((rows[r2] || [])[colIndex]);
+
+    if (value && validator(value)) return value;
+  }
+
+  return '';
+}
+
+/************************************************************
+ * MOCKTEST
+ *
+ * Hỗ trợ dạng:
+ * row header: 1st Mocktest |        |        | 2nd Mocktest ...
+ * row điểm:   8            | 8      | 8
+ *
+ * Mỗi Mocktest gồm 3 kỹ năng:
+ * - Listening
+ * - Reading & Writing
+ * - Speaking (E/G/NI)
+ ************************************************************/
+function normalizeMocktestSkillKeyV2_(value) {
+  const text = clean_(value)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/[^a-z0-9&+]/g, '');
+  if (text === 'l' || /listening|nghe/.test(text)) return 'listening';
+  if (text === 'r&w' || text === 'rw' || /reading.?writing|doc.?viet|read.?write/.test(text)) return 'reading_writing';
+  if (text === 'r' || text === 'reading' || /reading|doc/.test(text)) return 'reading';
+  if (text === 'w' || text === 'writing' || /writing|viet/.test(text)) return 'writing';
+  if (text === 's' || /speaking|noi/.test(text)) return 'speaking';
+  return '';
+}
+
+function parseCombinedReadingWriting_(value) {
+  const text = clean_(value);
+  if (!text) return { reading: null, writing: null };
+  const readingMatch = text.match(/(?:^|\|)\s*R\s*:\s*([^|]+)/i);
+  const writingMatch = text.match(/(?:^|\|)\s*W\s*:\s*([^|]+)/i);
+  return {
+    reading: readingMatch ? parseMocktestScore_(readingMatch[1]) : null,
+    writing: writingMatch ? parseMocktestScore_(writingMatch[1]) : null
+  };
+}
+
+function parseMinitestLedger_(rows, studentId) {
+  if (!rows || rows.length < 2) return [];
+  const headers = rows[0] || [];
+  const index = {};
+  headers.forEach(function(value, col) {
+    const key = normalizeVi_(value).replace(/[^a-z0-9]+/g, '');
+    if (key) index[key] = col;
+  });
+
+  const idColumn = index.studentid;
+  const labelColumn = index.testlabel;
+  if (idColumn === undefined || labelColumn === undefined) return [];
+  const targetId = normalizeStudentId_(studentId);
+  const out = [];
+  const byTestName = {};
+  const testOrder = [];
+
+  rows.slice(1).forEach(function(row) {
+    if (targetId && normalizeStudentId_(row[idColumn]).indexOf(targetId) === -1) return;
+    if (clean_(row[index.status]) === 'EMPTY') return;
+
+    const classType = clean_(row[index.classtype]).toUpperCase();
+    const listening = parseMocktestScore_(row[index.listening]);
+    const reading = parseMocktestScore_(row[index.reading]);
+    const writing = parseMocktestScore_(row[index.writing]);
+    const speaking = parseMocktestScore_(row[index.speaking]);
+    const displayOrder = index.displayorder === undefined
+      ? null
+      : Number(row[index.displayorder]);
+    const skillScores = [];
+    if (listening) skillScores.push({ label: 'Listening', score: listening.display });
+    if (classType === 'SMALL') {
+      const combined = reading || writing;
+      if (combined) skillScores.push({ label: 'Reading & Writing', score: combined.display });
+    } else {
+      if (reading) skillScores.push({ label: 'Reading', score: reading.display });
+      if (writing) skillScores.push({ label: 'Writing', score: writing.display });
+    }
+    if (speaking) skillScores.push({ label: 'Speaking', score: speaking.display });
+    if (!skillScores.length) return;
+
+    const nums = [listening, reading, writing, speaking]
+      .filter(Boolean)
+      .map(function(item) { return item.value; })
+      .filter(function(value) { return !isNaN(value); });
+    let className = clean_(row[index.classname]);
+    let label = clean_(row[labelColumn]);
+    if (!className) {
+      const titleParts = label.split(/\s+[—-]\s+/);
+      if (titleParts.length > 1) {
+        className = titleParts.shift();
+        label = titleParts.join(' — ');
+      }
+    }
+    const testName = [className, label].filter(Boolean).join(' \u2014 ');
+    const testKey = normalizeVi_(testName).replace(/[^a-z0-9]+/g, '');
+    const item = {
+      testName: testName,
+      displayOrder: isNaN(displayOrder) ? null : displayOrder,
+      average: nums.length
+        ? Math.round((nums.reduce(function(a, b) { return a + b; }, 0) / nums.length) * 100) / 100
+        : null,
+      scores: skillScores.map(function(item) { return item.score; }),
+      skillScores: skillScores,
+      feedbackText: index.feedbacktext === undefined
+        ? ''
+        : clean_(row[index.feedbacktext]),
+      source: 'MINITEST_LEDGER'
+    };
+    if (!byTestName[testKey]) testOrder.push(testKey);
+    byTestName[testKey] = item;
+  });
+  testOrder.forEach(function(key) { out.push(byTestName[key]); });
+  return out;
+}
+
+function mergeMocktestSources_(primary, fallback) {
+  const ledgerItems = Array.isArray(primary) ? primary : [];
+  const reportItems = Array.isArray(fallback) ? fallback : [];
+  if (!ledgerItems.length) return reportItems;
+  if (!reportItems.length) return ledgerItems;
+
+  const merged = ledgerItems.slice();
+  const ledgerAliases = {};
+  const fallbackKeys = {};
+
+  ledgerItems.forEach(function(item) {
+    mocktestNameAliases_(item && item.testName).forEach(function(key) {
+      ledgerAliases[key] = true;
+    });
+  });
+
+  // Ledger là nguồn chính. Báo cáo cá nhân chỉ bổ sung những bài cũ chưa có
+  // trong ledger; không bỏ toàn bộ fallback chỉ vì ledger đã có một bản ghi.
+  reportItems.forEach(function(item) {
+    const aliases = mocktestNameAliases_(item && item.testName);
+    if (!aliases.length) return;
+    if (aliases.some(function(key) { return ledgerAliases[key]; })) return;
+
+    const exactKey = aliases[0];
+    if (fallbackKeys[exactKey]) return;
+    fallbackKeys[exactKey] = true;
+
+    const copy = Object.assign({}, item, {
+      source: item && item.source ? item.source : 'REPORT_FALLBACK'
+    });
+    merged.push(copy);
+  });
+
+  return merged;
+}
+
+function mocktestNameAliases_(value) {
+  const text = clean_(value);
+  if (!text) return [];
+
+  const candidates = [text];
+  // Tiêu đề ledger mới có dạng "Tên lớp — Tên bài", còn các Profile cũ chỉ
+  // có "Tên bài". Dùng phần sau dấu gạch dài làm khóa phụ để nhận ra cùng bài.
+  const longDashParts = text.split(/\s+[—–]\s+/);
+  if (longDashParts.length > 1) candidates.push(longDashParts.slice(1).join(' — '));
+
+  const seen = {};
+  return candidates.map(function(candidate) {
+    return normalizeVi_(candidate).replace(/[^a-z0-9]+/g, '');
+  }).filter(function(key) {
+    if (!key || seen[key]) return false;
+    seen[key] = true;
+    return true;
+  });
+}
+
+function parseMocktestsV2_(rows, studentId) {
+  if (!rows || !rows.length) return [];
+  const targetStudentId = normalizeStudentId_(studentId);
+  let studentRowIndex = -1;
+
+  for (let r = 0; r < rows.length; r++) {
+    const rowText = (rows[r] || []).map(clean_).join(' ');
+    if (targetStudentId && normalizeStudentId_(rowText).indexOf(targetStudentId) !== -1) {
+      studentRowIndex = r;
+      break;
+    }
+  }
+  // Sheet "Báo cáo cá nhân" không phải mẫu nào cũng đặt Mã HV cạnh dòng
+  // điểm. Khi không thấy mã, nhận diện trực tiếp dòng L | R&W | S (hoặc
+  // L | R | W | S) và lấy dòng điểm ngay bên dưới.
+  if (studentRowIndex < 0) {
+    studentRowIndex = findProfileMinitestScoreRowV2_(rows);
+  }
+  if (studentRowIndex < 0) return [];
+
+  const out = [];
+  for (let headerRowIndex = 0; headerRowIndex < studentRowIndex; headerRowIndex++) {
+    const headerRow = rows[headerRowIndex] || [];
+    const positions = [];
+    headerRow.forEach((cell, col) => {
+      const skill = normalizeMocktestSkillKeyV2_(cell);
+      if (skill) positions.push({ skill, col });
+    });
+    if (!positions.length) continue;
+
+    const titleRow = rows[Math.max(0, headerRowIndex - 1)] || [];
+    const titleStarts = [];
+    titleRow.forEach((cell, col) => {
+      if (clean_(cell)) titleStarts.push({ col, label: clean_(cell) });
+    });
+
+    titleStarts.sort((a, b) => a.col - b.col);
+    const groups = [];
+    if (titleStarts.length) {
+      titleStarts.forEach((title, index) => {
+        const nextCol = titleStarts[index + 1] ? titleStarts[index + 1].col : Number.MAX_SAFE_INTEGER;
+        const group = {};
+        positions.forEach((position) => {
+          if (position.col < title.col || position.col >= nextCol) return;
+          if (group[position.skill] === undefined) group[position.skill] = position.col;
+        });
+        if (
+          group.listening !== undefined &&
+          group.speaking !== undefined &&
+          (group.reading_writing !== undefined || (group.reading !== undefined && group.writing !== undefined))
+        ) groups.push({
+          label: title.label,
+          columns: group,
+          schema: group.reading_writing !== undefined ? 'LEGACY_3' : 'CANONICAL_4'
+        });
+      });
+    } else {
+      positions.forEach((position, index) => {
+        if (position.skill !== 'listening') return;
+        const nextListening = positions.findIndex((item, itemIndex) => itemIndex > index && item.skill === 'listening');
+        const limit = nextListening < 0 ? positions.length : nextListening;
+        const reading = positions.slice(index + 1, limit).find((item) => item.skill === 'reading_writing' || item.skill === 'reading');
+        const writing = reading
+          ? positions.slice(index + 1, limit).find((item) => item.skill === 'writing' && item.col > reading.col)
+          : null;
+        const speaking = reading
+          ? positions.slice(index + 1, limit).find((item) => item.skill === 'speaking' && item.col > reading.col)
+          : null;
+        if (reading && speaking && (reading.skill === 'reading_writing' || writing)) {
+          groups.push({
+            label: 'Mocktest ' + (groups.length + 1),
+            columns: reading.skill === 'reading_writing'
+              ? { listening: position.col, reading_writing: reading.col, speaking: speaking.col }
+              : { listening: position.col, reading: reading.col, writing: writing.col, speaking: speaking.col },
+            schema: reading.skill === 'reading_writing' ? 'LEGACY_3' : 'CANONICAL_4'
+          });
+        }
+      });
+    }
+
+    groups.forEach((item) => {
+      const label = item.label;
+      const group = item.columns;
+      const combinedReadingWriting = item.schema === 'LEGACY_3'
+        ? parseCombinedReadingWriting_(rows[studentRowIndex][group.reading_writing])
+        : { reading: null, writing: null };
+      const isCombinedLarge = item.schema === 'LEGACY_3' &&
+        (combinedReadingWriting.reading || combinedReadingWriting.writing);
+      const rawItems = item.schema === 'CANONICAL_4'
+        ? [
+          parseMocktestScore_(rows[studentRowIndex][group.listening]),
+          parseMocktestScore_(rows[studentRowIndex][group.reading]),
+          parseMocktestScore_(rows[studentRowIndex][group.writing]),
+          parseMocktestScore_(rows[studentRowIndex][group.speaking])
+        ]
+        : isCombinedLarge
+          ? [
+            parseMocktestScore_(rows[studentRowIndex][group.listening]),
+            combinedReadingWriting.reading,
+            combinedReadingWriting.writing,
+            parseMocktestScore_(rows[studentRowIndex][group.speaking])
+          ]
+          : [
+            parseMocktestScore_(rows[studentRowIndex][group.listening]),
+            parseMocktestScore_(rows[studentRowIndex][group.reading_writing]),
+            parseMocktestScore_(rows[studentRowIndex][group.speaking])
+          ];
+      const skillLabels = item.schema === 'CANONICAL_4' || isCombinedLarge
+        ? ['Listening', 'Reading', 'Writing', 'Speaking']
+        : ['Listening', 'Reading & Writing', 'Speaking'];
+      const skillScores = rawItems.map((item, index) => item ? {
+        label: skillLabels[index],
+        score: item.display
+      } : null).filter(Boolean);
+      if (!skillScores.length) return;
+      const nums = rawItems.filter(Boolean).map((item) => item.value).filter((value) => !isNaN(value));
+      out.push({
+        testName: label,
+        average: nums.length
+          ? Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100
+          : null,
+        scores: skillScores.map((item) => item.score),
+        skillScores,
+        source: 'REPORT'
+      });
+    });
+    if (out.length) return out;
+  }
+  return [];
+}
+
+function findProfileMinitestScoreRowV2_(rows) {
+  rows = Array.isArray(rows) ? rows : [];
+
+  for (let headerRowIndex = 0; headerRowIndex < rows.length - 1; headerRowIndex++) {
+    const headerRow = rows[headerRowIndex] || [];
+    const skillColumns = [];
+    headerRow.forEach(function(cell, col) {
+      if (normalizeMocktestSkillKeyV2_(cell)) skillColumns.push(col);
+    });
+    if (skillColumns.length < 3) continue;
+
+    // Tiêu đề bài phải nằm ngay phía trên vùng kỹ năng; điều kiện này tránh
+    // nhận nhầm các bảng điểm khác trong cùng Student Profile.
+    const titleRow = rows[Math.max(0, headerRowIndex - 1)] || [];
+    const hasTitle = skillColumns.some(function(col) {
+      for (let offset = 0; offset <= 3; offset++) {
+        if (clean_(titleRow[Math.max(0, col - offset)])) return true;
+      }
+      return false;
+    });
+    if (!hasTitle) continue;
+
+    for (
+      let scoreRowIndex = headerRowIndex + 1;
+      scoreRowIndex < Math.min(rows.length, headerRowIndex + 4);
+      scoreRowIndex++
+    ) {
+      const scoreRow = rows[scoreRowIndex] || [];
+      const hasScore = skillColumns.some(function(col) {
+        return Boolean(parseMocktestScore_(scoreRow[col]));
+      });
+      if (hasScore) return scoreRowIndex;
+    }
+  }
+
+  return -1;
+}
+
+function parseMocktests_(rows, studentId) {
+  const out = [];
+
+  if (!rows || !rows.length) return out;
+
+  const targetStudentId = normalizeStudentId_(studentId);
+
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const headerCols = [];
+
+    for (let c = 0; c < row.length; c++) {
+      const text = clean_(row[c]);
+      const n = normalizeVi_(text);
+
+      if (
+        n.indexOf('mocktest') !== -1 ||
+        n.indexOf('mock test') !== -1 ||
+        n.indexOf('minitest') !== -1 ||
+        n.indexOf('mini test') !== -1 ||
+        n.indexOf('finaltest') !== -1 ||
+        n.indexOf('final test') !== -1
+      ) {
+        headerCols.push({
+          col: c,
+          name: text || ('Mocktest ' + (headerCols.length + 1))
+        });
+      }
+    }
+
+    if (!headerCols.length) continue;
+
+    const scoreRowIndex = findScoreRowAfterMockHeader_(rows, r, headerCols);
+
+    if (scoreRowIndex < 0) continue;
+
+    const scoreRow = rows[scoreRowIndex] || [];
+
+    headerCols.forEach(function(header, idx) {
+      const skillLabels = [
+        'Listening',
+        'Reading & Writing',
+        'Speaking (E/G/NI)'
+      ];
+      const rawItems = [
+        parseMocktestScore_(scoreRow[header.col]),
+        parseMocktestScore_(scoreRow[header.col + 1]),
+        parseMocktestScore_(scoreRow[header.col + 2])
+      ];
+      const skillScores = rawItems.map(function(item, skillIndex) {
+        if (!item) return null;
+        return {
+          label: skillLabels[skillIndex],
+          score: item.display
+        };
+      }).filter(Boolean);
+
+      if (!skillScores.length) return;
+
+      const scores = skillScores.map(function(item) {
+        return item.score;
+      });
+
+      const nums = rawItems
+        .filter(Boolean)
+        .map(function(item) { return item.value; })
+        .filter(function(n) { return !isNaN(n); });
+
+      const avg = nums.length
+        ? Math.round((nums.reduce(function(a, b) { return a + b; }, 0) / nums.length) * 100) / 100
+        : null;
+
+      out.push({
+        testName: header.name || ('Mocktest ' + (idx + 1)),
+        average: avg,
+        scores: scores,
+        skillScores: skillScores,
+        source: 'REPORT_LEGACY'
+      });
+    });
+
+    if (out.length) break;
+  }
+
+  return out;
+}
+
+function findScoreRowAfterMockHeader_(rows, headerRowIndex, headerCols) {
+  const headers = headerCols || [];
+
+  for (let r = headerRowIndex + 1; r < Math.min(rows.length, headerRowIndex + 8); r++) {
+    const row = rows[r] || [];
+    let scoreCount = 0;
+
+    if (headers.length) {
+      headers.forEach(function(header) {
+        for (let offset = 0; offset < 3; offset++) {
+          if (isMocktestScoreValue_(row[header.col + offset])) scoreCount++;
+        }
+      });
+    } else {
+      scoreCount = row.map(clean_).filter(isMocktestScoreValue_).length;
+    }
+
+    // Một bài có thể mới chỉ có điểm ở một kỹ năng.
+    if (scoreCount >= 1) {
+      return r;
+    }
+  }
+
+  return -1;
+}
+
+/************************************************************
+ * BÁO BÀI / BAOBAI / HISTORY-TKB
+ *
+ * Hỗ trợ Baobai tháng hiện tại và nhiều block tháng xếp dọc trong History-TKB.
+ ************************************************************/
+function buildBaoBaiTimeline_(lessonRows, historyRows, studentId) {
+  const currentItems = parseBaoBai_(lessonRows || [], studentId);
+  const historyItems = parseBaoBaiHistory_(historyRows || [], studentId);
+
+  // Dữ liệu live được đặt trước để thắng khi cùng một ngày còn xuất hiện
+  // trong cả Baobai và History-TKB.
+  return sortByDateDesc_(
+    dedupeBaoBaiByDate_(currentItems.concat(historyItems))
+  );
+}
+
+function parseBaoBaiHistory_(rows, studentId) {
+  if (!rows || !rows.length) return [];
+
+  const blocks = splitBaoBaiHistoryBlocks_(rows);
+  let items = [];
+
+  blocks.forEach(function(block) {
+    items = items.concat(parseBaoBai_(block, studentId));
+  });
+
+  return sortByDateDesc_(dedupeBaoBaiByDate_(items));
+}
+
+function splitBaoBaiHistoryBlocks_(rows) {
+  const blocks = [];
+
+  for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+    const row = rows[rowIndex] || [];
+    if (!isBaoBaiHistoryDayHeader_(row)) continue;
+
+    const block = [row];
+
+    // Một block Student Profile gồm 1 dòng Day + 6 dòng nội dung.
+    // Dừng sớm nếu gặp block kế tiếp hoặc dòng trống phân cách.
+    for (
+      let nextIndex = rowIndex + 1;
+      nextIndex < rows.length && block.length < 7;
+      nextIndex++
+    ) {
+      const nextRow = rows[nextIndex] || [];
+      if (isBaoBaiHistoryDayHeader_(nextRow)) break;
+
+      const hasValue = nextRow.some(function(value) {
+        return clean_(value);
+      });
+      if (!hasValue) break;
+
+      block.push(nextRow);
+    }
+
+    blocks.push(block);
+  }
+
+  return blocks;
+}
+
+function isBaoBaiHistoryDayHeader_(row) {
+  const cells = (row || []).map(clean_);
+  const firstText = cells.find(Boolean);
+  const normalizedFirstText = normalizeVi_(firstText);
+  const isDayLabel =
+    normalizedFirstText === 'day' ||
+    normalizedFirstText === 'ngay';
+
+  return isDayLabel && cells.some(isDateLike_);
+}
+
+function dedupeBaoBaiByDate_(items) {
+  const seen = {};
+  const out = [];
+
+  (items || []).forEach(function(item) {
+    const parsedDateKey = parseDateKey_(item && item.date);
+    const key = parsedDateKey
+      ? String(parsedDateKey)
+      : normalizeVi_(item && item.date);
+
+    if (!key || seen[key]) return;
+    seen[key] = true;
+    out.push(item);
+  });
+
+  return out;
+}
+
+function parseBaoBai_(rows, studentId) {
+  if (!rows || !rows.length) return [];
+
+  const horizontal = parseBaoBaiHorizontal_(rows);
+
+  if (horizontal.length) return horizontal;
+
+  return parseBaoBaiRowBased_(rows);
+}
+
+function parseBaoBaiHorizontal_(rows) {
+  const out = [];
+  const datePositions = findDatePositions_(rows);
+
+  datePositions.forEach(function(pos) {
+    const c = pos.c;
+    const material = parseBaoBaiMaterial_(
+      findValueByLabelInColumn_(rows, c, ['tài liệu', 'materials'])
+    );
+
+    const item = {
+      date: pos.date,
+      status: findValueByLabelInColumn_(rows, c, ['điểm danh', 'trạng thái', 'attendance', 'status']) || 'Đã ghi nhận',
+      lessonFocus: findValueByLabelInColumn_(rows, c, ['chủ đề', 'bài học', 'lesson focus', 'lesson', 'nội dung buổi học']),
+      vocabularyGrammar: findValueByLabelInColumn_(rows, c, ['từ vựng', 'ngữ pháp', 'vocabulary', 'grammar']),
+      skillsPracticed: findValueByLabelInColumn_(rows, c, ['kỹ năng', 'skills', 'practice']),
+      homeworkPractice: findValueByLabelInColumn_(rows, c, ['btvn', 'bài tập', 'homework']),
+      homeworkUrl: findValueByLabelInColumn_(rows, c, ['btvn link', 'link game', 'game url', 'homework url', 'link btvn', 'game link']),
+      materialsText: material.text,
+      materialsUrl: material.url,
+      teacherNote: findValueByLabelInColumn_(rows, c, ['ghi chú', 'nhận xét', 'teacher note', 'note']),
+      locked: false
+    };
+
+    const hasContent =
+      item.lessonFocus ||
+      item.vocabularyGrammar ||
+      item.skillsPracticed ||
+      item.homeworkPractice ||
+      item.homeworkUrl ||
+      item.materialsText ||
+      item.materialsUrl ||
+      item.teacherNote;
+
+    if (hasContent) out.push(item);
+  });
+
+  return sortByDateDesc_(dedupeByDate_(out));
+}
+
+function findValueByLabelInColumn_(rows, dateCol, labels) {
+  const wanted = labels.map(normalizeVi_);
+
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r] || [];
+
+    // Labels for the six Bao bai sections are fixed in column A.
+    // Do not scan earlier date columns: lesson content may itself contain
+    // "Grammar", "Skills", or "Homework" and match the wrong row.
+    const labelText = normalizeVi_(row[0]);
+
+    const matched = wanted.some(function(label) {
+      return labelText.indexOf(label) !== -1;
+    });
+
+    if (!matched) continue;
+
+    // Đúng nhãn nhưng ô ngày trống vẫn là kết quả hợp lệ.
+    // Không tìm tiếp xuống dòng khác vì các nhãn song ngữ có thể chồng lấn.
+    return clean_(row[dateCol]);
+  }
+
+  return '';
+}
+
+function parseBaoBaiMaterial_(value) {
+  const source = clean_(value);
+  const match = source.match(/https?:\/\/[^\s<>"']+/i);
+
+  if (!match) {
+    return { text: source, url: '' };
+  }
+
+  const url = match[0];
+  const text = clean_(
+    source
+      .replace(url, '')
+      .replace(/^[\s:|+\-]+|[\s:|+\-]+$/g, '')
+  );
+
+  return { text: text, url: url };
+}
+
+function parseBaoBaiRowBased_(rows) {
+  const out = [];
+
+  rows.forEach(function(row) {
+    const cells = (row || []).map(clean_);
+    const date = cells.find(isDateLike_);
+
+    if (!date) return;
+
+    const joined = cells.filter(Boolean).join('\n');
+
+    out.push({
+      date: date,
+      status: cells.find(isAttendanceStatus_) || 'Đã ghi nhận',
+      lessonFocus: joined,
+      vocabularyGrammar: '',
+      skillsPracticed: '',
+      homeworkPractice: '',
+      homeworkUrl: '',
+      materialsText: '',
+      materialsUrl: '',
+      teacherNote: '',
+      locked: false
+    });
+  });
+
+  return sortByDateDesc_(dedupeByDate_(out));
+}
+
+/************************************************************
+ * REPORT TEXT
+ ************************************************************/
+function parseReportText_(rows) {
+  rows = Array.isArray(rows) ? rows : [];
+
+  // Layout chuẩn của sheet "Báo cáo cá nhân": nhãn "Nhận xét từ GV"
+  // nằm bên trái và toàn bộ lời nhắn nằm trong ô/ô gộp bên phải.
+  const labeledText = findReportTextBesideLabel_(rows);
+  if (labeledText) return labeledText;
+
+  // Fallback cho profile cũ không có nhãn: chỉ chọn một ô có hình thức
+  // giống nội dung báo cáo, không ghép mọi tiêu đề trong sheet vào lời nhắn.
+  const candidates = [];
+  const preferred = [];
+
+  rows.forEach(function(row) {
+    (row || []).forEach(function(cell) {
+      const text = cleanReportText_(cell);
+      if (!isReportFallbackCandidate_(text)) return;
+
+      candidates.push(text);
+      if (hasReportBodyMarker_(text)) preferred.push(text);
+    });
+  });
+
+  return pickLongestReportText_(preferred.length ? preferred : candidates);
+}
+
+function findReportTextBesideLabel_(rows) {
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r] || [];
+
+    for (let c = 0; c < row.length; c++) {
+      if (!isReportTextLabel_(row[c])) continue;
+
+      const sameRow = [];
+      for (let c2 = c + 1; c2 < row.length; c2++) {
+        const text = cleanReportText_(row[c2]);
+        if (text.length >= 20 && !isReportTextLabel_(text)) sameRow.push(text);
+      }
+
+      if (sameRow.length) return pickLongestReportText_(sameRow);
+
+      // Hỗ trợ template đặt nội dung ở một trong hai dòng ngay dưới nhãn.
+      const below = [];
+      for (let r2 = r + 1; r2 < Math.min(rows.length, r + 3); r2++) {
+        const nextRow = rows[r2] || [];
+        for (let c3 = Math.max(0, c - 1); c3 < nextRow.length; c3++) {
+          const nextText = cleanReportText_(nextRow[c3]);
+          if (isReportFallbackCandidate_(nextText)) below.push(nextText);
+        }
+      }
+
+      if (below.length) return pickLongestReportText_(below);
+    }
+  }
+
+  return '';
+}
+
+function isReportTextLabel_(value) {
+  const n = normalizeVi_(value);
+  return n === 'nhan xet tu gv' ||
+    n === 'nhan xet gv' ||
+    n === 'nhan xet tu giao vien' ||
+    n === 'nhan xet giao vien' ||
+    n === 'loi nhan tu giao vien';
+}
+
+function isReportFallbackCandidate_(text) {
+  text = cleanReportText_(text);
+  if (text.length < 20) return false;
+
+  const n = normalizeVi_(text);
+  if (isReportTextLabel_(text)) return false;
+  if (isDateLike_(text) || isScoreValue_(text)) return false;
+  if (extractStudentIdFromText_(text)) return false;
+
+  // Các tiêu đề nằm trong cùng sheet nhưng không phải lời nhận xét.
+  if (n.indexOf('mini test') !== -1 ||
+      n.indexOf('mock test') !== -1 ||
+      n.indexOf('mocktest') !== -1 ||
+      n.indexOf('but pha tieng anh') !== -1 ||
+      n.indexOf('vuon tam the gioi') !== -1) {
+    return false;
+  }
+
+  return true;
+}
+
+function hasReportBodyMarker_(text) {
+  const n = normalizeVi_(text);
+  return n.indexOf('em lien lac de gui bao cao') !== -1 ||
+    n.indexOf('diem thi cuoi ky') !== -1 ||
+    n.indexOf('bao cao tinh hinh hoc tap') !== -1 ||
+    n.indexOf('ky nang nghe') !== -1 ||
+    n.indexOf('wewin xin chan thanh cam on') !== -1;
+}
+
+function pickLongestReportText_(items) {
+  return (items || []).reduce(function(best, item) {
+    const text = cleanReportText_(item);
+    return text.length > best.length ? text : best;
+  }, '');
+}
+
+function cleanReportText_(value) {
+  if (value === null || value === undefined) return '';
+
+  return String(value)
+    .replace(/\r\n?/g, '\n')
+    .replace(/\u00A0/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/[ \t]*\n[ \t]*/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/************************************************************
+ * METRICS
+ ************************************************************/
+
+function buildMetrics_(attendance, dailyScores) {
+  const present = attendance.filter(function(item) {
+    return isPresentStatus_(item.status);
+  }).length;
+
+  const absent = attendance.filter(function(item) {
+    return isAbsentStatus_(item.status);
+  }).length;
+
+  const excused = attendance.filter(function(item) {
+    return normalizeVi_(item.status).indexOf('co phep') !== -1;
+  }).length;
+
+  const nums = dailyScores
+    .map(function(item) {
+      const value = item.scoreNumber !== undefined && item.scoreNumber !== ''
+        ? item.scoreNumber
+        : item.score;
+
+      return Number(String(value || '').replace(',', '.'));
+    })
+    .filter(function(n) {
+      return !isNaN(n);
+    });
+
+  const avg = nums.length
+    ? Math.round((nums.reduce(function(a, b) { return a + b; }, 0) / nums.length) * 100) / 100
+    : '';
+
+  const latest = dailyScores && dailyScores.length
+    ? (dailyScores[0].scoreNumber || dailyScores[0].score || dailyScores[0].rawScore || '--')
+    : '--';
+
+  return {
+    attendancePresent: present,
+    attendanceAbsent: absent,
+    attendanceExcused: excused,
+    avgScore: avg ? String(avg) : '--',
+    latestScore: String(latest)
+  };
+}
+
+/************************************************************
+ * HOMEWORK CONFIRM
+ ************************************************************/
+function confirmHomeworkStatus_(studentId, accessCode, date, task, status) {
+  studentId = normalizeStudentId_(studentId);
+  accessCode = clean_(accessCode);
+  date = clean_(date);
+  task = clean_(task);
+  status = clean_(status);
+
+  if (!studentId) {
+    return {
+      ok: false,
+      message: 'Thiếu mã học viên.'
+    };
+  }
+
+  if (accessCode !== CFG.DEFAULT_ACCESS_CODE) {
+    return {
+      ok: false,
+      message: 'Mật khẩu không đúng.'
+    };
+  }
+
+  const profileFile = findStudentProfileFileByDrive_(studentId);
+  const ss = SpreadsheetApp.openById(profileFile.getId());
+
+  let sh = ss.getSheetByName(CFG.HOMEWORK_CONFIRM_SHEET);
+
+  if (!sh) {
+    sh = ss.insertSheet(CFG.HOMEWORK_CONFIRM_SHEET);
+    sh.appendRow([
+      'Thời gian xác nhận',
+      'Mã HV',
+      'Ngày BTVN',
+      'Nội dung BTVN',
+      'Trạng thái',
+      'Nguồn'
+    ]);
+  }
+
+  sh.appendRow([
+    Utilities.formatDate(new Date(), CFG.TIMEZONE, 'dd/MM/yyyy HH:mm:ss'),
+    studentId,
+    date,
+    task,
+    status,
+    'Parent Portal'
+  ]);
+
+  return {
+    ok: true,
+    message: 'Đã ghi nhận xác nhận BTVN.',
+    confirmation: {
+      studentId: studentId,
+      date: date,
+      task: task,
+      status: status
+    }
+  };
+}
+
+/************************************************************
+ * REQUEST HELPERS
+ ************************************************************/
+function getRequestParams_(e) {
+  const out = {};
+  const params = (e && e.parameter) || {};
+
+  Object.keys(params).forEach(function(key) {
+    out[key] = params[key];
+  });
+
+  if (e && e.postData && e.postData.contents) {
+    const body = String(e.postData.contents || '').trim();
+
+    if (body) {
+      try {
+        const parsed = JSON.parse(body);
+
+        if (parsed && typeof parsed === 'object') {
+          Object.keys(parsed).forEach(function(key) {
+            out[key] = parsed[key];
+          });
+        }
+      } catch (jsonErr) {}
+    }
+  }
+
+  return out;
+}
+
+/************************************************************
+ * GENERAL HELPERS
+ ************************************************************/
+function findLabelValue_(rows, labels) {
+  const wanted = labels.map(normalizeVi_);
+
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r] || [];
+
+    for (let c = 0; c < row.length; c++) {
+      const cell = clean_(row[c]);
+
+      if (!cell) continue;
+
+      const nCell = normalizeVi_(cell);
+      const matched = wanted.some(function(label) {
+        return nCell.indexOf(label) !== -1;
+      });
+
+      if (!matched) continue;
+
+      // Ưu tiên ô bên phải cùng dòng.
+      for (let k = c + 1; k < row.length; k++) {
+        const right = clean_(row[k]);
+
+        if (right) return right;
+      }
+
+      // Nếu không có bên phải, thử ô bên dưới.
+      for (let rr = r + 1; rr < Math.min(rows.length, r + 5); rr++) {
+        const below = clean_((rows[rr] || [])[c]);
+
+        if (below) return below;
+      }
+    }
+  }
+
+  return '';
+}
+
+function cleanMocktestScore_(value) {
+  const parsed = parseMocktestScore_(value);
+
+  if (!parsed) return '';
+
+  return parsed.display;
+}
+
+function parseMocktestScore_(value) {
+  const display = clean_(value);
+
+  if (!display) return null;
+
+  const normalized = display.replace(',', '.');
+  const fraction = normalized.match(/^(-?\d+(?:\.\d+)?)\s*\/\s*(-?\d+(?:\.\d+)?)$/);
+
+  if (fraction) {
+    const numerator = Number(fraction[1]);
+    const denominator = Number(fraction[2]);
+
+    if (isNaN(numerator) || isNaN(denominator) || numerator < 0 || denominator < 0) return null;
+
+    if (denominator === 0) {
+      return numerator === 0 ? {
+        display: display,
+        value: NaN
+      } : null;
+    }
+
+    if (numerator > denominator) return null;
+
+    return {
+      display: display,
+      value: Math.round((numerator / denominator * 10) * 100) / 100
+    };
+  }
+
+  if (!/^-?\d+(\.\d+)?$/.test(normalized)) return null;
+
+  const n = Number(normalized);
+
+  if (isNaN(n) || n < 0 || n > 100) return null;
+
+  return {
+    display: display,
+    value: n
+  };
+}
+
+// Điểm theo buổi / các điểm nhỏ vẫn giữ thang 0-10.
+function isScoreValue_(value) {
+  const text = clean_(value).replace(',', '.');
+
+  if (!/^-?\d+(\.\d+)?$/.test(text)) return false;
+
+  const n = Number(text);
+
+  return n >= 0 && n <= 10;
+}
+
+// Mocktest trong sheet "Báo cáo cá nhân" có thể dùng thang điểm lớn hơn,
+// ví dụ 20, 25, 50... nên dùng validator riêng 0-100.
+function isMocktestScoreValue_(value) {
+  return Boolean(parseMocktestScore_(value));
+}
+
+function isAttendanceStatus_(value) {
+  const n = normalizeVi_(value);
+
+  return n.indexOf('di hoc') !== -1 ||
+    n.indexOf('dung gio') !== -1 ||
+    n.indexOf('di tre') !== -1 ||
+    n.indexOf('tre') !== -1 ||
+    n.indexOf('vang') !== -1 ||
+    n.indexOf('co phep') !== -1 ||
+    n.indexOf('nghi') !== -1 ||
+    n.indexOf('present') !== -1 ||
+    n.indexOf('absent') !== -1 ||
+    n.indexOf('late') !== -1;
+}
+
+function isPresentStatus_(value) {
+  const n = normalizeVi_(value);
+
+  return n.indexOf('di hoc') !== -1 ||
+    n.indexOf('dung gio') !== -1 ||
+    n.indexOf('present') !== -1;
+}
+
+function isAbsentStatus_(value) {
+  const n = normalizeVi_(value);
+
+  return n.indexOf('vang') !== -1 ||
+    n.indexOf('nghi') !== -1 ||
+    n.indexOf('absent') !== -1;
+}
+
+function isDateLike_(value) {
+  value = clean_(value);
+
+  if (!value) return false;
+
+  return /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(value) ||
+    /^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(value);
+}
+
+function parseDateKey_(value) {
+  value = clean_(value);
+
+  let m = value.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+
+  if (m) {
+    const d = Number(m[1]);
+    const mo = Number(m[2]);
+    let y = Number(m[3]);
+
+    if (y < 100) y += 2000;
+
+    return y * 10000 + mo * 100 + d;
+  }
+
+  m = value.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+
+  if (m) {
+    return Number(m[1]) * 10000 + Number(m[2]) * 100 + Number(m[3]);
+  }
+
+  return 0;
+}
+
+function mergePortalItemsLiveFirst_(liveItems, historyItems) {
+  // dedupeByDate_ giữ phần tử đầu tiên; vì vậy live luôn được ưu tiên.
+  return sortByDateDesc_(dedupeByDate_(
+    (liveItems || []).concat(historyItems || [])
+  ));
+}
+function sortByDateDesc_(items) {
+  return (items || []).slice().sort(function(a, b) {
+    return parseDateKey_(b.date) - parseDateKey_(a.date);
+  });
+}
+
+function dedupeByDate_(items) {
+  const seen = {};
+  const out = [];
+
+  (items || []).forEach(function(item) {
+    const key = clean_(item.date);
+
+    if (!key || seen[key]) return;
+
+    seen[key] = true;
+    out.push(item);
+  });
+
+  return out;
+}
+
+function clean_(value) {
+  if (value === null || value === undefined) return '';
+
+  return String(value)
+    .replace(/\u00A0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeText_(value) {
+  return clean_(value).toLowerCase();
+}
+
+function sameText_(a, b) {
+  return normalizeText_(a) === normalizeText_(b);
+}
+
+function normalizeVi_(value) {
+  return clean_(value)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd');
+}
+
+/************************************************************
+ * STUDENT ID HELPERS
+ ************************************************************/
+function extractStudentIdFromText_(text) {
+  text = clean_(text);
+
+  if (!text) return '';
+
+  // Hỗ trợ:
+  // - WeWIN01-HV-1602
+  // - WeWIN-HV01-00001
+  // - WeWIN-HV02-00001
+  // - ST-50954
+  // - NTL-3666
+  const match = text.match(/(?:[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*-(?:HV|KH|HS)\d*-\d+|[A-Za-z]{2,5}-\d+)/i);
+
+  return match && match[0] ? normalizeStudentId_(match[0]) : '';
+}
+
+function isStudentCode_(value) {
+  value = normalizeStudentId_(value);
+
+  // Hỗ trợ cả mã WeWIN và mã ngắn dạng ST-50954, NTL-3666
+  return /^(?:[A-Z0-9]+(?:-[A-Z0-9]+)*-(?:HV|KH|HS)\d*-\d+|[A-Z]{2,5}-\d+)$/i.test(value);
+}
+
+
+function normalizeStudentId_(value) {
+  const raw = clean_(value);
+  const extracted = extractStudentIdOnlyNoLoop_(raw);
+
+  return (extracted || raw)
+    .toUpperCase()
+    .replace(/\s+/g, '');
+}
+
+function extractStudentIdOnlyNoLoop_(text) {
+  text = clean_(text);
+
+  // Hỗ trợ lấy mã từ tên file:
+  // WeWIN01__STUDENT__NTL-3666 -> NTL-3666
+  // WeWIN01__STUDENT__ST-50954 -> ST-50954
+  const match = text.match(/(?:[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*-(?:HV|KH|HS)\d*-\d+|[A-Za-z]{2,5}-\d+)/i);
+
+  return match && match[0] ? match[0] : '';
+}
+
+function extractLastNumber_(studentId) {
+  const match = clean_(studentId).match(/(\d+)$/);
+
+  return match && match[1] ? Number(match[1]) : 0;
+}

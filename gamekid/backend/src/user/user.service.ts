@@ -1,0 +1,200 @@
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { In, Repository } from 'typeorm';
+import { User } from 'src/entities/user/user.entity';
+import { Role } from 'src/entities/role/role.entity';
+
+const TEACHER_ROLE_NAME = 'TEACHER';
+
+function resolveBinaryRole(role?: number, roles?: Role[]) {
+  if (role === 1) {
+    return 1;
+  }
+
+  if (role === 0) {
+    return 0;
+  }
+
+  return roles?.some((item) => item.name === TEACHER_ROLE_NAME) ? 1 : 0;
+}
+
+@Injectable()
+export class UserService {
+  constructor(
+    @InjectRepository(User)
+    private repo: Repository<User>,
+
+    @InjectRepository(Role)
+    private roleRepo: Repository<Role>,
+  ) {}
+
+  async create(data: CreateUserDto) {
+    const roles = data.roleIds?.length
+      ? await this.roleRepo.find({ where: { id: In(data.roleIds) } })
+      : [];
+
+    const user = this.repo.create({
+      name: data.name,
+      email: data.email,
+      password: data.password,
+      role: resolveBinaryRole(data.role, roles),
+      roles,
+    });
+
+    return this.repo.save(user);
+  }
+
+  findAll() {
+    return this.repo.find({ relations: ['roles', 'roles.permissions'] });
+  }
+
+  findOne(id: string) {
+    return this.repo.findOne({
+      where: { id },
+      relations: ['roles', 'roles.permissions'],
+    });
+  }
+
+  async update(id: string, data: UpdateUserDto) {
+    let roles: Role[] | undefined = undefined;
+
+    if (data.roleIds) {
+      roles = await this.roleRepo.find({ where: { id: In(data.roleIds) } });
+    }
+
+    await this.repo.update(id, {
+      ...data,
+      ...(data.role !== undefined
+        ? { role: data.role }
+        : roles
+          ? { role: resolveBinaryRole(undefined, roles) }
+          : {}),
+      ...(roles ? { roles } : {}),
+    });
+
+    return this.findOne(id);
+  }
+
+  async addRoleToUser(userId: string, roleId: string) {
+    const user = await this.repo.findOne({
+      where: { id: userId },
+      relations: ['roles'],
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    const role = await this.roleRepo.findOne({ where: { id: roleId } });
+    if (!role) throw new NotFoundException('Role not found');
+
+    const hasRole = user.roles.some((r) => r.id === roleId);
+    if (hasRole) {
+      throw new BadRequestException('User already has this role');
+    }
+
+    user.roles.push(role);
+    user.role = resolveBinaryRole(undefined, user.roles);
+    await this.repo.save(user);
+
+    return {
+      id: user.id,
+      email: user.email,
+      roles: user.roles,
+    };
+  }
+
+  async updateUserRoles(userId: string, roleIds: string[]) {
+    const user = await this.repo.findOne({
+      where: { id: userId },
+      relations: ['roles'],
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const roles = await this.roleRepo.find({
+      where: { id: In(roleIds) },
+    });
+
+    if (roles.length !== roleIds.length) {
+      throw new BadRequestException('One or more roles not found');
+    }
+
+    user.roles = roles;
+    user.role = resolveBinaryRole(undefined, roles);
+    await this.repo.save(user);
+
+    return {
+      id: user.id,
+      email: user.email,
+      roles: roles,
+    };
+  }
+
+  async removeRoleFromUser(userId: string, roleId: string) {
+    const user = await this.repo.findOne({
+      where: { id: userId },
+      relations: ['roles'],
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    const hasRole = user.roles.some((r) => r.id === roleId);
+    if (!hasRole) {
+      throw new BadRequestException('User does not have this role');
+    }
+
+    if (user.roles.length === 1) {
+      throw new BadRequestException('User must have at least one role');
+    }
+
+    user.roles = user.roles.filter((r) => r.id !== roleId);
+    user.role = resolveBinaryRole(undefined, user.roles);
+    await this.repo.save(user);
+
+    return {
+      id: user.id,
+      email: user.email,
+      roles: user.roles,
+    };
+  }
+
+  remove(id: string) {
+    return this.repo.delete(id);
+  }
+
+  findByEmail(email: string) {
+    return this.repo.findOne({
+      where: { email },
+      select: [
+        'id',
+        'name',
+        'email',
+        'password',
+        'refreshToken',
+        'isActive',
+        'dob',
+        'address',
+        'phone',
+        'image',
+        'role',
+      ],
+      relations: ['roles', 'roles.permissions'],
+    });
+  }
+
+  async updateRefreshToken(userId: string, refreshToken: string | null) {
+    await this.repo.update(userId, { refreshToken });
+  }
+
+  async findById(id: string) {
+    return this.repo.findOne({
+      where: { id },
+      relations: ['roles', 'roles.permissions'],
+    });
+  }
+}

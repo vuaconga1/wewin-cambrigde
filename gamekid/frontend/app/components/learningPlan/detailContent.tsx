@@ -1,0 +1,68 @@
+"use client";
+import OverviewBlock from "./OverviewBlock";
+import ProjectBlock from "./projectBlock";
+import { getClassDetail } from "../../../lib/constants/classDetails";
+import {
+  mockBooks,
+  mockProjects,
+  mockLearningNodes,
+  mockLessonContents,
+} from "../../../lib/constants/mockData";
+import { ClassId } from "@/lib/constants/types";
+
+const CLASS_TO_BOOK: Record<ClassId, string> = {
+  KIDS: "book_kids",
+  SYLLABUS_IELTS: "book_syllabus_ielts",
+  STARTERS: "book_starters",
+  MOVERS: "book_movers",
+  FLYERS: "book_flyers",
+  AUDIO: "book_audio",
+  VIDEOS: "book_videos",
+};
+
+export default function DetailContent({ classId }: { classId: ClassId }) {
+  const detail = getClassDetail(classId);
+  const mappedBookId = CLASS_TO_BOOK[classId];
+  const book = mockBooks.find((b) => b.id === mappedBookId);
+
+  if (!book) {
+    return (
+      <div className="text-red-500 text-center p-4">
+        Không tìm thấy sách tương ứng.
+      </div>
+    );
+  }
+
+  const projects = mockProjects.filter((p) => p.bookId === book.id);
+
+  return (
+    <div>
+      <div className="bg-white p-4 sm:p-6 lg:p-8 rounded-xl shadow">
+        <OverviewBlock
+          title={detail.title}
+          learningTitle={detail.learningTitle}
+          overview={detail.overview}
+        />
+
+        {projects.map((project) => {
+          const nodes = mockLearningNodes.filter(
+            (n) => n.projectId === project.id
+          );
+
+          const lessonBlocks = mockLessonContents.filter((c) =>
+            nodes.some((node) => node.id === c.learningNodeId)
+          );
+
+          return (
+            <ProjectBlock
+              key={project.id}
+              project={project}
+              nodes={nodes}
+              contents={lessonBlocks}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}

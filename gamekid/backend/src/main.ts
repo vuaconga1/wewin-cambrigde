@@ -1,0 +1,83 @@
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { AllExceptionsFilter } from 'src/filters/http-exception.filter';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+
+  app.useGlobalFilters(new AllExceptionsFilter());
+
+  const corsOrigins = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://wewin-education.vercel.app',
+    'https://wewin-game.vercel.app',
+    'https://wewin-cambrigde.vercel.app',
+    'https://wewin-cambridge.vercel.app',
+    'https://cambrigde.wewin.edu.vn',
+    'https://wewincambridge.baobai.edu.vn',
+    'https://wewin.baobai.edu.vn',
+    ...(process.env.CORS_ORIGINS
+      ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim())
+      : []),
+  ];
+
+  app.enableCors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (corsOrigins.includes(origin)) return callback(null, true);
+      if (/^https:\/\/([\w-]+\.)*vercel\.app$/.test(origin)) {
+        return callback(null, true);
+      }
+      if (/^https:\/\/([\w-]+\.)*wewin\.edu\.vn$/.test(origin)) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+
+  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+
+  const config = new DocumentBuilder()
+    .setTitle('WeWIN Education API')
+    .setDescription('Backend API for Admin / Inventory / User / Role')
+    .setVersion('1.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+      },
+      'access-token',
+    )
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document);
+
+  const PORT = Number(process.env.PORT) || 8000;
+  console.log(
+    `Starting WeWIN API on 0.0.0.0:${PORT} (db=${Boolean(process.env.DATABASE_URL)})`,
+  );
+  await app.listen(PORT, '0.0.0.0');
+  console.log(`WeWIN API listening on 0.0.0.0:${PORT}`);
+}
+
+bootstrap().catch((err) => {
+  console.error('❌ Bootstrap failed', err);
+  process.exit(1);
+});

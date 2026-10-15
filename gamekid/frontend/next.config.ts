@@ -1,0 +1,98 @@
+import type { NextConfig } from "next";
+
+/** Parent portals allowed to embed WeWIN games via iframe */
+const FRAME_ANCESTORS = [
+  "'self'",
+  "https://wewin.edu.vn",
+  "https://*.wewin.edu.vn",
+  "https://wewin.baobai.edu.vn",
+  // Bản copy đang test chạy trên Google Apps Script (nội dung render trong iframe
+  // của Google). Cho phép các domain này để nhúng iframe khi test trên GAS.
+  "https://script.google.com",
+  "https://*.googleusercontent.com",
+  "http://localhost:*",
+  "http://127.0.0.1:*",
+].join(" ");
+
+const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/games/starters",
+        destination: "/games/starters/hello-unit",
+        permanent: false,
+      },
+      {
+        source: "/games/movers",
+        destination: "/games/movers/unit-1-at-the-park",
+        permanent: false,
+      },
+      {
+        source: "/games/kids",
+        destination: "/games/kids/my-future-career-fair",
+        permanent: false,
+      },
+      {
+        source: "/games/flyers",
+        destination: "/games/flyers/unit-0-hello",
+        permanent: false,
+      },
+    ];
+  },
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "wewin.edu.vn",
+        pathname: "/wp-content/uploads/**",
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+      {
+        protocol: "https",
+        hostname: "plus.unsplash.com",
+      },
+      {
+        protocol: "https",
+        hostname: "example.com", // 👈 thêm dòng này
+        pathname: "/images/**",
+      },
+    ],
+  },
+  turbopack: {},
+  async headers() {
+    return [
+      {
+        source: "/assets/levels/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=0, must-revalidate",
+          },
+        ],
+      },
+      {
+        source: "/api/parent/weekly-scores",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "https://wewin.baobai.edu.vn" },
+          { key: "Access-Control-Allow-Methods", value: "GET, OPTIONS" },
+          { key: "Access-Control-Allow-Headers", value: "Authorization, Content-Type" },
+          { key: "Vary", value: "Origin" },
+        ],
+      },
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: `frame-ancestors ${FRAME_ANCESTORS}`,
+          },
+        ],
+      },
+    ];
+  },
+};
+
+export default nextConfig;
