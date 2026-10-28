@@ -304,20 +304,32 @@ function UserSection({ user, studentSession, onClearStudent }: UserSectionProps)
 
   if (!user)
     return (
-      <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => router.push(Routes.LOGIN)}
-        className="hidden lg:flex items-center gap-2 
-                   px-6 py-2.5 rounded-xl font-bold
-                   bg-linear-to-r from-amber-400 via-yellow-400 to-amber-400
-                   text-blue-900 shadow-lg hover:shadow-xl
-                   hover:from-amber-300 hover:via-yellow-300 hover:to-amber-300
-                   transition-all duration-300 border border-amber-300/50"
-      >
-        <LockKeyhole className="w-5 h-5" />
-        <span>Đăng nhập</span>
-      </motion.button>
+      <div className="hidden lg:flex items-center gap-2">
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => router.push(Routes.REGISTER)}
+          className="px-5 py-2.5 rounded-xl font-bold
+                     bg-white/15 text-white hover:bg-white/25
+                     transition-all border border-white/30"
+        >
+          Đăng ký
+        </motion.button>
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => router.push(Routes.LOGIN)}
+          className="flex items-center gap-2 
+                     px-6 py-2.5 rounded-xl font-bold
+                     bg-linear-to-r from-amber-400 via-yellow-400 to-amber-400
+                     text-blue-900 shadow-lg hover:shadow-xl
+                     hover:from-amber-300 hover:via-yellow-300 hover:to-amber-300
+                     transition-all duration-300 border border-amber-300/50"
+        >
+          <LockKeyhole className="w-5 h-5" />
+          <span>Đăng nhập</span>
+        </motion.button>
+      </div>
     );
 
   return (
@@ -576,24 +588,41 @@ function MobileMenu({
 
             {/* Login Button (giáo viên) */}
             {!user && !studentSession && (
-              <motion.button
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => {
-                  window.location.href = Routes.LOGIN;
-                  setMenuOpen(false);
-                }}
-                className="w-full px-5 py-4 rounded-2xl font-bold text-base
-                         bg-linear-to-r from-white to-blue-50
-                         text-[#1a5fb4] shadow-xl hover:shadow-2xl
-                         transition-all border border-white/50
-                         flex items-center justify-center gap-2"
-              >
-                <LockKeyhole className="w-5 h-5" />
-                Đăng nhập
-              </motion.button>
+              <div className="grid grid-cols-2 gap-2">
+                <motion.button
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => {
+                    window.location.href = Routes.REGISTER;
+                    setMenuOpen(false);
+                  }}
+                  className="w-full px-4 py-4 rounded-2xl font-bold text-base
+                           bg-white/15 text-white
+                           transition-all border border-white/30"
+                >
+                  Đăng ký
+                </motion.button>
+                <motion.button
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => {
+                    window.location.href = Routes.LOGIN;
+                    setMenuOpen(false);
+                  }}
+                  className="w-full px-4 py-4 rounded-2xl font-bold text-base
+                           bg-linear-to-r from-white to-blue-50
+                           text-[#1a5fb4] shadow-xl hover:shadow-2xl
+                           transition-all border border-white/50
+                           flex items-center justify-center gap-2"
+                >
+                  <LockKeyhole className="w-5 h-5" />
+                  Đăng nhập
+                </motion.button>
+              </div>
             )}
 
             {/* Resources/Games Section */}

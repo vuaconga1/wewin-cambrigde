@@ -11,6 +11,7 @@ import { JwtService } from '@nestjs/jwt';
 import { UserService } from 'src/user/user.service';
 import bcrypt from 'bcrypt';
 import { JwtPayload } from './types/jwt-payload.type';
+import { RegisterDto } from './dto/register.dto';
 
 const TEACHER_ROLE_NAME = 'TEACHER';
 const STUDENT_ROLE_NAME = 'STUDENT';
@@ -58,20 +59,27 @@ export class AuthService {
   /* ---------------------------------------------------------
      REGISTER
   --------------------------------------------------------- */
-  async register(data: any) {
-    const existed = await this.userService.findByEmail(data.email);
+  async register(data: RegisterDto) {
+    const email = data.email.trim();
+    const existed = await this.userService.findByEmail(email);
     if (existed) {
-      throw new BadRequestException('Email already exists');
+      throw new BadRequestException('Email này đã được đăng ký');
     }
 
     const hashed = await bcrypt.hash(data.password, 10);
+    const name = data.name?.trim() || email.split('@')[0] || 'Học viên';
 
-    return this.userService.create({
-      ...data,
-      message: 'Register success',
+    const user = await this.userService.create({
+      name,
+      email,
       password: hashed,
-      isActive: true,
+      role: 0,
     });
+
+    return {
+      message: 'Đăng ký thành công',
+      user,
+    };
   }
 
   /* ---------------------------------------------------------

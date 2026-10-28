@@ -158,7 +158,13 @@ export function bookTypeFromPathname(pathname: string): string | undefined {
   if (raw === "starters") return "starter";
   if (raw === "movers") return "mover";
   if (raw === "flyers") return "flyer";
-  if (raw === "kids" || raw === "starter" || raw === "mover" || raw === "flyer") {
+  if (
+    raw === "kids" ||
+    raw === "super-kids" ||
+    raw === "starter" ||
+    raw === "mover" ||
+    raw === "flyer"
+  ) {
     return raw;
   }
   return undefined;

@@ -28,11 +28,6 @@ const nextConfig: NextConfig = {
         permanent: false,
       },
       {
-        source: "/games/kids",
-        destination: "/games/kids/my-future-career-fair",
-        permanent: false,
-      },
-      {
         source: "/games/flyers",
         destination: "/games/flyers/unit-0-hello",
         permanent: false,

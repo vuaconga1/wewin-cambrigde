@@ -9,6 +9,7 @@ export type StudentSession = {
 
 const BOOK_PLAYER_STORAGE_KEYS = [
   "kids_book_player_id",
+  "super_kids_book_player_id",
   "starter_book_player_id",
   "mover_book_player_id",
   "flyer_book_player_id",

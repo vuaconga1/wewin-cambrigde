@@ -11,8 +11,11 @@ function applyIconsToWords<T extends WordLike>(words: T[], approvedMap: Map<stri
   });
 }
 
+// Super Kids dùng hình cắt từ sách, không thay bằng ảnh chung trong vocab_images.
+const BOOK_TYPES_WITH_OWN_ICONS = new Set(['super-kids']);
+
 export function applyApprovedIconsToGameUnit(unit: GameUnit, approvedMap: Map<string, string>): GameUnit {
-  if (approvedMap.size === 0) return unit;
+  if (approvedMap.size === 0 || BOOK_TYPES_WITH_OWN_ICONS.has(unit.bookType)) return unit;
   return {
     ...unit,
     flashcards: { ...unit.flashcards, words: applyIconsToWords(unit.flashcards.words, approvedMap) },

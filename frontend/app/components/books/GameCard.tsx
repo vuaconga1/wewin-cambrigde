@@ -10,6 +10,7 @@ interface GameCardProps {
 }
 
 const LEVEL_IMAGE: Record<string, string> = {
+  "super-kids": "/assets/levels/super-kids.webp",
   kids: "/assets/levels/kids.png",
   starters: "/assets/levels/starters.png",
   movers: "/assets/levels/movers.png",

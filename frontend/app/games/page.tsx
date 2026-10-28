@@ -11,12 +11,20 @@ import { LEVEL_LIBRARY_GUIDE } from "@/app/components/games/gameGuideContent";
 // Danh sách các sách có game - sử dụng routes PUBLIC
 const gameBooks: Book[] = [
   {
+    id: "game_super_kids",
+    name: "SUPER KIDS GAMES",
+    status: "active",
+    imgUrl: "",
+    description: "",
+    gameUrl: "/games/super-kids",
+  },
+  {
     id: "game_kids",
     name: "KIDS GAMES",
     status: "active",
     imgUrl: "",
     description: "",
-    gameUrl: "/games/kids",
+    gameUrl: "/games/kids/my-future-career-fair",
   },
   {
     id: "game_starters",
@@ -52,7 +60,7 @@ function GamesLibraryContent() {
       <div className="mx-auto flex w-full max-w-[1760px] flex-1 flex-col">
         <div className="mb-4 shrink-0 text-center sm:mb-5 lg:mb-6">
           <h1 className="text-xl font-bold text-[#0E4BA9] drop-shadow-[0_2px_8px_rgba(255,255,255,0.85)] sm:text-3xl lg:text-4xl xl:text-5xl">
-            Thư viện Games WeWIN
+            Thư viện Games Kids
           </h1>
           <p className="mt-1.5 px-2 text-sm font-medium text-slate-800 drop-shadow-[0_1px_6px_rgba(255,255,255,0.8)] sm:text-base lg:text-lg">
             Chọn cấp độ phù hợp để bắt đầu chơi và học tiếng Anh
@@ -75,8 +83,8 @@ function GamesLibraryContent() {
             <LevelBooksCarousel books={activeBooks} />
           </div>
 
-          {/* Desktop / Windows: 4-column grid như cũ */}
-          <div className="hidden w-full grid-cols-4 items-center gap-2 lg:grid xl:gap-4 2xl:gap-5">
+          {/* Desktop / Windows: 5-column grid */}
+          <div className="hidden w-full grid-cols-5 items-center gap-2 lg:grid xl:gap-3 2xl:gap-4">
             {activeBooks.map((book) => (
               <GameCard key={book.id} book={book} />
             ))}

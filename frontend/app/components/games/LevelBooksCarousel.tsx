@@ -14,6 +14,7 @@ import type { Book } from "@/lib/constants/types";
 import { resolveLevelKey } from "@/app/components/games/forest-background/levelCardThemes";
 
 const LEVEL_IMAGE: Record<string, string> = {
+  "super-kids": "/assets/levels/super-kids.webp",
   kids: "/assets/levels/kids.png",
   starters: "/assets/levels/starters.png",
   movers: "/assets/levels/movers.png",

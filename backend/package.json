@@ -22,6 +22,7 @@
     "import:audio:dry-run": "ts-node -r tsconfig-paths/register scripts/import-audio.ts --dry-run",
     "sync:audio:public": "ts-node -r tsconfig-paths/register scripts/import-audio.ts --sync-public",
     "sync:audio:public:dry-run": "ts-node -r tsconfig-paths/register scripts/import-audio.ts --sync-public --dry-run",
+    "seed:super-kids": "ts-node -r tsconfig-paths/register scripts/seed-super-kids.ts",
     "seed:vocab-images": "ts-node -r tsconfig-paths/register scripts/seed-vocab-images.ts",
     "import:images": "ts-node -r tsconfig-paths/register scripts/import-images.ts",
     "import:images:dry-run": "ts-node -r tsconfig-paths/register scripts/import-images.ts --dry-run",

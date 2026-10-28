@@ -314,6 +314,17 @@ export default function LoginPage() {
               </motion.div>
             )}
 
+            <p className="text-sm text-gray-600 text-center">
+              Chưa có tài khoản?{" "}
+              <button
+                type="button"
+                onClick={() => router.push(Routes.REGISTER)}
+                className="font-semibold text-blue-600 hover:text-blue-800"
+              >
+                Đăng ký
+              </button>
+            </p>
+
             {/* LOGIN BUTTON */}
             <motion.button
               whileHover={{ scale: 1.02 }}

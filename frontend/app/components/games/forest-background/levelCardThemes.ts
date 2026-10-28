@@ -1,6 +1,6 @@
 import type { ForestSeason } from "./themes";
 
-export type LevelKey = "kids" | "starters" | "movers" | "flyers";
+export type LevelKey = "kids" | "super-kids" | "starters" | "movers" | "flyers";
 
 export type LevelCardPalette = {
   topBg: string;
@@ -19,6 +19,13 @@ const SEASON_LEVEL_PALETTES: Record<
   Record<LevelKey, StoredPalette>
 > = {
   spring: {
+    "super-kids": {
+      topBg: "linear-gradient(180deg, #ffffff 0%, #f0f7ff 100%)",
+      bottomBg: "linear-gradient(145deg, #cbe5ff 0%, #70b8ff 55%, #3b82f6 100%)",
+      ring: "ring-[#70b8ff]/70 hover:ring-[#3b82f6]",
+      titleColor: "#1d4ed8",
+      subtitleColor: "#2563eb",
+    },
     kids: {
       topBg: "linear-gradient(180deg, #ffffff 0%, #f7f2f5 100%)",
       bottomBg: "linear-gradient(145deg, #ffe0ec 0%, #f5b8cc 55%, #e8a0b8 100%)",
@@ -49,6 +56,13 @@ const SEASON_LEVEL_PALETTES: Record<
     },
   },
   summer: {
+    "super-kids": {
+      topBg: "linear-gradient(180deg, #ffffff 0%, #eef9ff 100%)",
+      bottomBg: "linear-gradient(145deg, #bae6fd 0%, #38bdf8 55%, #0284c7 100%)",
+      ring: "ring-[#38bdf8]/70 hover:ring-[#0284c7]",
+      titleColor: "#0369a1",
+      subtitleColor: "#0284c7",
+    },
     kids: {
       topBg: "linear-gradient(180deg, #ffffff 0%, #faf8f2 100%)",
       bottomBg: "linear-gradient(145deg, #fff0c8 0%, #f5d888 55%, #e8c060 100%)",
@@ -79,6 +93,13 @@ const SEASON_LEVEL_PALETTES: Record<
     },
   },
   autumn: {
+    "super-kids": {
+      topBg: "linear-gradient(180deg, #ffffff 0%, #f0f8ff 100%)",
+      bottomBg: "linear-gradient(145deg, #bfdbfe 0%, #60a5fa 55%, #2563eb 100%)",
+      ring: "ring-[#60a5fa]/70 hover:ring-[#2563eb]",
+      titleColor: "#1e40af",
+      subtitleColor: "#1d4ed8",
+    },
     kids: {
       topBg: "linear-gradient(180deg, #ffffff 0%, #faf6f2 100%)",
       bottomBg: "linear-gradient(145deg, #f5dcc0 0%, #e0b888 55%, #c89868 100%)",
@@ -109,6 +130,13 @@ const SEASON_LEVEL_PALETTES: Record<
     },
   },
   winter: {
+    "super-kids": {
+      topBg: "linear-gradient(180deg, #ffffff 0%, #f0f9ff 100%)",
+      bottomBg: "linear-gradient(145deg, #e0f2fe 0%, #7dd3fc 55%, #0284c7 100%)",
+      ring: "ring-[#7dd3fc]/70 hover:ring-[#0284c7]",
+      titleColor: "#075985",
+      subtitleColor: "#0369a1",
+    },
     kids: {
       topBg: "linear-gradient(180deg, #ffffff 0%, #f4f2f8 100%)",
       bottomBg: "linear-gradient(145deg, #e8dff5 0%, #c8b8e0 55%, #a898c8 100%)",
@@ -139,6 +167,13 @@ const SEASON_LEVEL_PALETTES: Record<
     },
   },
   wewin: {
+    "super-kids": {
+      topBg: "linear-gradient(180deg, #ffffff 0%, #eef6ff 100%)",
+      bottomBg: "linear-gradient(145deg, #93c5fd 0%, #1d4ed8 55%, #000B29 100%)",
+      ring: "ring-[#3b82f6]/70 hover:ring-[#D4AF37]",
+      titleColor: "#000B29",
+      subtitleColor: "#1e40af",
+    },
     kids: {
       topBg: "linear-gradient(180deg, #ffffff 0%, #f7f4eb 100%)",
       bottomBg: "linear-gradient(145deg, #f5e6b8 0%, #d4af37 55%, #b68d4c 100%)",
@@ -171,6 +206,9 @@ const SEASON_LEVEL_PALETTES: Record<
 };
 
 const BOOK_ID_TO_LEVEL: Record<string, LevelKey> = {
+  game_super_kids: "super-kids",
+  game_superkids: "super-kids",
+  "super-kids": "super-kids",
   game_kids: "kids",
   game_starters: "starters",
   game_starter: "starters",

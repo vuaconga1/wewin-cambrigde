@@ -3,7 +3,8 @@ from PIL import Image
 from collections import deque
 import os
 
-LEVELS_DIR = r"E:\Wewin\WeWinGame\Wewin-Education-main\frontend\public\assets\levels"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+LEVELS_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "public", "assets", "levels"))
 DARK = 28
 LIGHT = 245
 # Slightly wider than classic 3:4 (~4:5)
@@ -71,15 +72,17 @@ def normalize_canvas(im: Image.Image) -> Image.Image:
 
 def process(level: str) -> None:
     bak = os.path.join(LEVELS_DIR, f"{level}.original.png")
-    path = os.path.join(LEVELS_DIR, f"{level}.png")
-    src = bak if os.path.exists(bak) else path
+    path_png = os.path.join(LEVELS_DIR, f"{level}.png")
+    path_webp = os.path.join(LEVELS_DIR, f"{level}.webp")
+    src = bak if os.path.exists(bak) else path_png
     im = Image.open(src)
     print(f"{level}: {im.size} from {os.path.basename(src)}")
     out = normalize_canvas(remove_backdrop(im))
-    out.save(path, optimize=True)
-    print(f"  saved {out.size} -> {path}\n")
+    out.save(path_png, optimize=True)
+    out.save(path_webp, "WEBP", quality=95)
+    print(f"  saved {out.size} -> {path_png} & {path_webp}\n")
 
 
 if __name__ == "__main__":
-    for level in ["kids", "starters", "movers", "flyers"]:
+    for level in ["kids", "starters", "movers", "flyers", "super-kids"]:
         process(level)

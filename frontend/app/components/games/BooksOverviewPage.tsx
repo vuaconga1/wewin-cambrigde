@@ -117,7 +117,7 @@ export function BooksOverviewPage() {
         <div className="text-center mb-8 md:mb-10">
           <div className="mb-3 md:mb-4">
             <h1 className="text-2xl font-bold text-[#0E4BA9] drop-shadow-[0_2px_8px_rgba(255,255,255,0.85)] md:text-5xl">
-              Thư viện Games WeWIN
+              Thư viện Games Kids
             </h1>
           </div>
           <p className="px-2 text-sm font-medium text-slate-800 drop-shadow-[0_1px_6px_rgba(255,255,255,0.8)] md:text-lg">
