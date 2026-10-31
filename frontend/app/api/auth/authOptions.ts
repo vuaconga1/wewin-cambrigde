@@ -21,8 +21,9 @@ export const authOptions: NextAuthOptions = {
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
+            // Backend nhận email hoặc Mã HV qua field "email"
             body: JSON.stringify({
-              identifier,
+              email: identifier,
               password: credentials.password,
             }),
           },
