@@ -187,6 +187,19 @@ export class UserService {
     });
   }
 
+  findByLogin(identifier: string) {
+    const value = identifier.trim().toLowerCase();
+    return this.repo
+      .createQueryBuilder('user')
+      .addSelect(['user.password', 'user.refreshToken'])
+      .leftJoinAndSelect('user.roles', 'roles')
+      .leftJoinAndSelect('roles.permissions', 'permissions')
+      .where('LOWER(user.email) = :value OR LOWER(user.username) = :value', {
+        value,
+      })
+      .getOne();
+  }
+
   async updateRefreshToken(userId: string, refreshToken: string | null) {
     await this.repo.update(userId, { refreshToken });
   }

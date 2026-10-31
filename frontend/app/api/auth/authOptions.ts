@@ -8,12 +8,13 @@ export const authOptions: NextAuthOptions = {
     Credentials({
       name: "Credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        identifier: { label: "Tên đăng nhập hoặc Email", type: "text" },
         password: { label: "Password", type: "password" },
       },
 
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        const identifier = credentials?.identifier?.trim();
+        if (!identifier || !credentials?.password) return null;
 
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/auth/login`,
@@ -21,7 +22,7 @@ export const authOptions: NextAuthOptions = {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              email: credentials.email,
+              identifier,
               password: credentials.password,
             }),
           },
@@ -34,7 +35,7 @@ export const authOptions: NextAuthOptions = {
         return {
           id: result.user.id,
           name: result.user.name,
-          email: result.user.email,
+          email: result.user.email ?? result.user.username ?? "",
           image: result.user.image ?? null,
           roles: result.user.roles ?? [],
           access_token: result.access_token,

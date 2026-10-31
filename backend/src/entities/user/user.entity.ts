@@ -26,8 +26,12 @@ export class User extends BaseEntity {
   @Column({ type: 'varchar', nullable: true })
   phone?: string | null;
 
-  @Column({ unique: true })
-  email: string;
+  @Column({ type: 'varchar', unique: true, nullable: true })
+  email?: string | null;
+
+  // Mã học viên (Mã HV), dùng để đăng nhập thay cho email
+  @Column({ type: 'varchar', length: 50, unique: true, nullable: true })
+  username?: string | null;
 
   // Fix: password cần nullable cho Google Login
   @Column({ type: 'text', nullable: true })

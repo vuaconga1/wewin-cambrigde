@@ -33,7 +33,11 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() data: LoginDto) {
-    return this.authService.login(data.email, data.password);
+    const identifier = (data.identifier ?? data.email ?? '').trim();
+    if (!identifier) {
+      throw new UnauthorizedException('Vui lòng nhập email hoặc tên đăng nhập');
+    }
+    return this.authService.login(identifier, data.password);
   }
 
   @Post('refresh')

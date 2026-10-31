@@ -13,7 +13,7 @@ export default function LoginPage() {
   const { status } = useSession();
   const router = useRouter();
 
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -57,6 +57,12 @@ export default function LoginPage() {
   }, [status, router]);
 
   const handleCredentialsLogin = async () => {
+    const trimmedIdentifier = identifier.trim();
+    if (!trimmedIdentifier || !password) {
+      showNotification("Vui lòng nhập tên đăng nhập/email và mật khẩu", "error");
+      return;
+    }
+
     setIsLoading(true);
     setErrorMessage("");
 
@@ -65,7 +71,7 @@ export default function LoginPage() {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ identifier: trimmedIdentifier, password }),
       });
 
       const data = await res.json();
@@ -81,7 +87,7 @@ export default function LoginPage() {
 
       // 3️⃣ Gọi NextAuth signIn
       await signIn("credentials", {
-        email,
+        identifier: trimmedIdentifier,
         password,
         redirect: false,
       });
@@ -234,17 +240,19 @@ export default function LoginPage() {
             transition={{ delay: 0.4 }}
             className="space-y-6"
           >
-            {/* Email */}
+            {/* Username / Email */}
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email
+                Tên đăng nhập hoặc Email
               </label>
               <input
-                type="email"
-                value={email}
+                type="text"
+                autoComplete="username"
+                autoCapitalize="none"
+                value={identifier}
                 onKeyPress={handleKeyPress}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="example@wewin.edu.vn"
+                onChange={(e) => setIdentifier(e.target.value)}
+                placeholder="Mã học viên hoặc example@wewin.edu.vn"
                 className="
             w-full px-4 py-3.5 
             border-2 border-gray-200 rounded-xl 

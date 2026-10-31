@@ -85,14 +85,16 @@ export class AuthService {
   /* ---------------------------------------------------------
      LOGIN (CREDENTIALS)
   --------------------------------------------------------- */
-  async login(email: string, password: string) {
-    const user = await this.userService.findByEmail(email);
+  async login(identifier: string, password: string) {
+    const user = await this.userService.findByLogin(identifier);
     if (!user || !user.password) {
-      throw new UnauthorizedException('Wrong email or password');
+      throw new UnauthorizedException('Sai tên đăng nhập/email hoặc mật khẩu');
     }
 
     const match = await bcrypt.compare(password, user.password);
-    if (!match) throw new UnauthorizedException('Wrong email or password');
+    if (!match) {
+      throw new UnauthorizedException('Sai tên đăng nhập/email hoặc mật khẩu');
+    }
 
     const roles = buildRoles(user);
 
