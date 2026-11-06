@@ -34,6 +34,10 @@ export default function Navbar() {
   const studentSession = useStudentStore((s) => s.session);
   const clearStudentSession = useStudentStore((s) => s.clearSession);
 
+  const isStaff = !!user?.roles?.some(
+    (r) => (r.name === "TEACHER" || r.name === "ADMIN") && r.isDisabled !== true,
+  );
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [showNavbar, setShowNavbar] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
@@ -120,6 +124,21 @@ export default function Navbar() {
                 >
                   <Gamepad2 className="w-5 h-5 text-white" />
                   <span>Games</span>
+                </motion.button>
+              </Link>
+            )}
+
+            {isStaff && (
+              <Link href={Routes.MANAGE_CLASS}>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl
+                   bg-amber-400 text-blue-900 font-bold
+                   transition-all shadow-lg hover:bg-amber-300"
+                >
+                  <School className="w-4 h-4" />
+                  <span>Lớp học &amp; bài tập</span>
                 </motion.button>
               </Link>
             )}
@@ -214,6 +233,7 @@ export default function Navbar() {
         menuOpen={menuOpen}
         setMenuOpen={setMenuOpen}
         hasPermission={hasPermission}
+        isStaff={isStaff}
         user={user}
         studentSession={studentSession}
         onClearStudent={clearStudentSession}
@@ -409,6 +429,7 @@ type MobileMenuProps = {
   menuOpen: boolean;
   setMenuOpen: Dispatch<SetStateAction<boolean>>;
   hasPermission: (permission: string) => boolean;
+  isStaff: boolean;
   user: {
     name?: string;
     email?: string;
@@ -421,6 +442,7 @@ function MobileMenu({
   menuOpen,
   setMenuOpen,
   hasPermission,
+  isStaff,
   user,
   studentSession,
   onClearStudent,
@@ -623,6 +645,18 @@ function MobileMenu({
                   Đăng nhập
                 </motion.button>
               </div>
+            )}
+
+            {isStaff && (
+              <Link
+                href={Routes.MANAGE_CLASS}
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl
+                         bg-amber-400 text-blue-900 font-bold text-sm shadow-lg"
+              >
+                <School className="w-5 h-5" />
+                Lớp học &amp; bài tập
+              </Link>
             )}
 
             {/* Resources/Games Section */}
