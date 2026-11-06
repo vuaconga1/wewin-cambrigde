@@ -24,7 +24,9 @@ type ApiRole = Role;
 type ApiUser = {
   id: string;
   name: string;
-  email: string;
+  email?: string | null;
+  username?: string | null;
+  role?: number;
   phone?: string | null;
   address?: string | null;
   dob?: string | null;
@@ -37,7 +39,9 @@ type ApiUser = {
 
 type UserFormState = {
   name: string;
+  username: string;
   email: string;
+  role: number;
   password: string;
   phone: string;
   address: string;
@@ -49,14 +53,16 @@ type UserFormState = {
 
 type UserPayload = {
   name: string;
+  username: string;
   email: string;
+  role: number;
   password?: string;
   phone?: string;
   address?: string;
   dob?: string;
   image?: string;
   isActive: boolean;
-  roleIds: string[];
+  roleIds?: string[];
 };
 
 type NoticeState = {
@@ -66,7 +72,9 @@ type NoticeState = {
 
 const DEFAULT_FORM_STATE: UserFormState = {
   name: "",
+  username: "",
   email: "",
+  role: 0,
   password: "",
   phone: "",
   address: "",
@@ -90,6 +98,15 @@ function formatDate(value?: string | null) {
   return new Intl.DateTimeFormat("vi-VN").format(date);
 }
 
+function isTeacher(user: ApiUser) {
+  return user.role === 1 || user.roles.some((role) => role.name === "TEACHER");
+}
+
+function roleLabels(user: ApiUser) {
+  if (user.roles.length) return user.roles.map((role) => role.name);
+  return [isTeacher(user) ? "Giáo viên" : "Học viên"];
+}
+
 function getErrorMessage(error: unknown) {
   if (typeof error !== "object" || error === null) {
     return "Không thể thực hiện thao tác.";
@@ -100,7 +117,9 @@ function getErrorMessage(error: unknown) {
 
   if (typeof message === "string") return message;
   if (message && typeof message === "object" && "message" in message) {
-    return message.message ?? "Không thể thực hiện thao tác.";
+    const text = message.message as unknown;
+    if (Array.isArray(text)) return text.join(", ");
+    return typeof text === "string" ? text : "Không thể thực hiện thao tác.";
   }
 
   return "Không thể thực hiện thao tác.";
@@ -156,13 +175,16 @@ export function UserManagementClient({ currentUserId }: { currentUserId: string 
 
     if (!keyword) return users;
 
-    return users.filter((user) => {
-      const roleText = user.roles.map((role) => role.name).join(" ").toLowerCase();
-
-      return [user.name, user.email, user.phone ?? "", user.address ?? "", roleText].some(
-        (value) => value.toLowerCase().includes(keyword),
-      );
-    });
+    return users.filter((user) =>
+      [
+        user.name,
+        user.username,
+        user.email,
+        user.phone,
+        user.address,
+        roleLabels(user).join(" "),
+      ].some((value) => (value ?? "").toLowerCase().includes(keyword)),
+    );
   }, [search, users]);
 
   const total = filteredUsers.length;
@@ -190,7 +212,9 @@ export function UserManagementClient({ currentUserId }: { currentUserId: string 
     setEditingUser(user);
     setForm({
       name: user.name,
-      email: user.email,
+      username: user.username ?? "",
+      email: user.email ?? "",
+      role: isTeacher(user) ? 1 : 0,
       password: "",
       phone: user.phone ?? "",
       address: user.address ?? "",
@@ -222,13 +246,13 @@ export function UserManagementClient({ currentUserId }: { currentUserId: string 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!form.name.trim() || !form.email.trim()) {
-      setNotice({ type: "error", text: "Vui lòng nhập tên và email." });
+    if (!form.name.trim()) {
+      setNotice({ type: "error", text: "Vui lòng nhập tên." });
       return;
     }
 
-    if (form.roleIds.length === 0) {
-      setNotice({ type: "error", text: "Vui lòng chọn ít nhất một vai trò." });
+    if (!form.username.trim() && !form.email.trim()) {
+      setNotice({ type: "error", text: "Vui lòng nhập tên đăng nhập hoặc email." });
       return;
     }
 
@@ -239,13 +263,15 @@ export function UserManagementClient({ currentUserId }: { currentUserId: string 
 
     const payload: UserPayload = {
       name: form.name.trim(),
+      username: form.username.trim(),
       email: form.email.trim(),
+      role: form.role,
       phone: form.phone.trim(),
       address: form.address.trim(),
       dob: form.dob || undefined,
       image: form.image.trim(),
       isActive: form.isActive,
-      roleIds: form.roleIds,
+      ...(roles.length ? { roleIds: form.roleIds } : {}),
       ...(form.password.trim() ? { password: form.password.trim() } : {}),
     };
 
@@ -290,9 +316,7 @@ export function UserManagementClient({ currentUserId }: { currentUserId: string 
   };
 
   const activeCount = users.filter((user) => user.isActive !== false).length;
-  const teacherRoleCount = users.filter((user) =>
-    user.roles.some((role) => role.name === "TEACHER"),
-  ).length;
+  const teacherRoleCount = users.filter(isTeacher).length;
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(14,75,169,0.14),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(255,153,51,0.18),_transparent_24%),linear-gradient(180deg,_#f8fbff_0%,_#eef6ff_100%)] px-4 py-6 sm:px-6 lg:px-8">
@@ -337,7 +361,7 @@ export function UserManagementClient({ currentUserId }: { currentUserId: string 
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Tìm theo tên, email, vai trò hoặc số điện thoại"
+                placeholder="Tìm theo tên, mã HV / tên đăng nhập, email, vai trò hoặc số điện thoại"
                 className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
               />
             </label>
@@ -378,26 +402,26 @@ export function UserManagementClient({ currentUserId }: { currentUserId: string 
             </div>
           ) : (
             <ReusableTable<ApiUser>
-              columns={["Mã", "Tên", "Email", "Vai trò", "Trạng thái"]}
+              columns={["Tên đăng nhập", "Tên", "Email", "Vai trò", "Trạng thái"]}
               data={visibleUsers}
               getKey={(user) => user.id}
               emptyText="Chưa có người dùng nào."
               renderRow={(user) => (
                 <>
-                  <td className="px-5 py-4 align-top text-sm font-semibold text-[#0E4BA9]">{user.id.slice(0, 8)}</td>
+                  <td className="px-5 py-4 align-top text-sm font-semibold text-[#0E4BA9]">{user.username || "—"}</td>
                   <td className="px-5 py-4 align-top">
                     <div className="font-semibold text-slate-900">{user.name}</div>
                     <div className="text-xs text-slate-500">{user.phone || "Chưa có số điện thoại"}</div>
                   </td>
-                  <td className="px-5 py-4 align-top text-sm text-slate-700">{user.email}</td>
+                  <td className="px-5 py-4 align-top text-sm text-slate-700">{user.email || "—"}</td>
                   <td className="px-5 py-4 align-top">
                     <div className="flex flex-wrap justify-center gap-2">
-                      {user.roles.map((role) => (
+                      {roleLabels(user).map((label) => (
                         <span
-                          key={`${user.id}-${role.id}`}
+                          key={`${user.id}-${label}`}
                           className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-[#0E4BA9]"
                         >
-                          {role.name}
+                          {label}
                         </span>
                       ))}
                     </div>
@@ -414,23 +438,24 @@ export function UserManagementClient({ currentUserId }: { currentUserId: string 
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-semibold text-[#0E4BA9]">{user.name}</p>
-                      <p className="text-xs text-slate-500">{user.email}</p>
+                      <p className="text-xs text-slate-500">{user.username || user.email}</p>
                     </div>
                     <StatusBadge status={user.isActive !== false ? "Active" : "Inactive"} />
                   </div>
 
                   <div className="space-y-2 text-sm text-slate-700">
-                    <p><span className="font-medium">Mã:</span> {user.id.slice(0, 8)}</p>
+                    <p><span className="font-medium">Tên đăng nhập:</span> {user.username || "—"}</p>
+                    <p><span className="font-medium">Email:</span> {user.email || "—"}</p>
                     <p><span className="font-medium">Ngày sinh:</span> {formatDate(user.dob)}</p>
                     <p><span className="font-medium">Điện thoại:</span> {user.phone || "—"}</p>
                     <p><span className="font-medium">Địa chỉ:</span> {user.address || "—"}</p>
                     <div className="flex flex-wrap gap-2 pt-1">
-                      {user.roles.map((role) => (
+                      {roleLabels(user).map((label) => (
                         <span
-                          key={`${user.id}-mobile-${role.id}`}
+                          key={`${user.id}-mobile-${label}`}
                           className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-[#0E4BA9]"
                         >
-                          {role.name}
+                          {label}
                         </span>
                       ))}
                     </div>
@@ -487,7 +512,7 @@ export function UserManagementClient({ currentUserId }: { currentUserId: string 
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6 px-6 py-6">
+            <form onSubmit={handleSubmit} autoComplete="off" className="space-y-6 px-6 py-6">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Field label="Tên" required>
                   <input
@@ -497,11 +522,36 @@ export function UserManagementClient({ currentUserId }: { currentUserId: string 
                   />
                 </Field>
 
-                <Field label="Email" required>
+                <Field label="Vai trò" required>
+                  <select
+                    value={form.role}
+                    onChange={(event) => setForm((prev) => ({ ...prev, role: Number(event.target.value) }))}
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-[#0E4BA9] focus:bg-white"
+                  >
+                    <option value={0}>Học viên</option>
+                    <option value={1}>Giáo viên</option>
+                  </select>
+                </Field>
+
+                <Field label="Tên đăng nhập / Mã HV">
+                  <input
+                    name="manage-username"
+                    autoComplete="off"
+                    value={form.username}
+                    onChange={(event) => setForm((prev) => ({ ...prev, username: event.target.value }))}
+                    placeholder="VD: WeWIN01-HV-1145 hoặc hieu"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-[#0E4BA9] focus:bg-white"
+                  />
+                </Field>
+
+                <Field label="Email">
                   <input
                     type="email"
+                    name="manage-email"
+                    autoComplete="off"
                     value={form.email}
                     onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
+                    placeholder="Không bắt buộc"
                     className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-[#0E4BA9] focus:bg-white"
                   />
                 </Field>
@@ -509,6 +559,8 @@ export function UserManagementClient({ currentUserId }: { currentUserId: string 
                 <Field label={editingUser ? "Mật khẩu mới" : "Mật khẩu"}>
                   <input
                     type="password"
+                    name="manage-new-password"
+                    autoComplete="new-password"
                     value={form.password}
                     onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
                     placeholder={editingUser ? "Để trống nếu không đổi" : "Nhập mật khẩu"}
@@ -552,11 +604,12 @@ export function UserManagementClient({ currentUserId }: { currentUserId: string 
                 </Field>
               </div>
 
+              {roles.length > 0 && (
               <div className="space-y-3 rounded-[24px] border border-slate-200 bg-slate-50/70 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">Vai trò</p>
-                    <p className="text-xs text-slate-500">Chọn ít nhất một vai trò cho tài khoản này.</p>
+                    <p className="text-sm font-semibold text-slate-900">Nhóm quyền</p>
+                    <p className="text-xs text-slate-500">Không bắt buộc.</p>
                   </div>
                   <span className="text-xs font-medium text-slate-500">{form.roleIds.length} đã chọn</span>
                 </div>
@@ -586,6 +639,7 @@ export function UserManagementClient({ currentUserId }: { currentUserId: string 
                   })}
                 </div>
               </div>
+              )}
 
               <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <label className="inline-flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700">

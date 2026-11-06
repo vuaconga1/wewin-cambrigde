@@ -66,13 +66,13 @@ export class AuthService {
       throw new BadRequestException('Email này đã được đăng ký');
     }
 
-    const hashed = await bcrypt.hash(data.password, 10);
     const name = data.name?.trim() || email.split('@')[0] || 'Học viên';
 
+    // UserService.create tự hash mật khẩu
     const user = await this.userService.create({
       name,
       email,
-      password: hashed,
+      password: data.password,
       role: 0,
     });
 

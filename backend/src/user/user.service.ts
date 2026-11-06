@@ -2,7 +2,9 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
+import bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -34,15 +36,51 @@ export class UserService {
     private roleRepo: Repository<Role>,
   ) {}
 
+  /** Chuẩn hóa email/username ('' -> null) và chặn trùng (không phân biệt hoa thường) */
+  private async normalizeIdentity(
+    data: { email?: string | null; username?: string | null },
+    excludeId?: string,
+  ) {
+    const result: { email?: string | null; username?: string | null } = {};
+    if (data.email !== undefined) result.email = data.email?.trim() || null;
+    if (data.username !== undefined) {
+      result.username = data.username?.trim() || null;
+    }
+
+    for (const field of ['email', 'username'] as const) {
+      const value = result[field];
+      if (!value) continue;
+      const qb = this.repo
+        .createQueryBuilder('u')
+        .where(`LOWER(u.${field}) = LOWER(:value)`, { value });
+      if (excludeId) qb.andWhere('u.id != :excludeId', { excludeId });
+      if (await qb.getExists()) {
+        throw new ConflictException(
+          field === 'email' ? 'Email đã được dùng' : 'Tên đăng nhập đã được dùng',
+        );
+      }
+    }
+    return result;
+  }
+
   async create(data: CreateUserDto) {
     const roles = data.roleIds?.length
       ? await this.roleRepo.find({ where: { id: In(data.roleIds) } })
       : [];
+    const identity = await this.normalizeIdentity(data);
+    if (!identity.email && !identity.username) {
+      throw new BadRequestException('Cần nhập email hoặc tên đăng nhập');
+    }
 
     const user = this.repo.create({
       name: data.name,
-      email: data.email,
-      password: data.password,
+      ...identity,
+      password: data.password ? await bcrypt.hash(data.password, 10) : null,
+      phone: data.phone || null,
+      address: data.address || null,
+      dob: data.dob || null,
+      image: data.image || null,
+      isActive: data.isActive ?? true,
       role: resolveBinaryRole(data.role, roles),
       roles,
     });
@@ -62,22 +100,29 @@ export class UserService {
   }
 
   async update(id: string, data: UpdateUserDto) {
-    let roles: Role[] | undefined = undefined;
+    const user = await this.repo.findOne({ where: { id }, relations: ['roles'] });
+    if (!user) throw new NotFoundException('User not found');
 
-    if (data.roleIds) {
-      roles = await this.roleRepo.find({ where: { id: In(data.roleIds) } });
+    const { roleIds, password, email, username, role, ...rest } = data;
+    const identity = await this.normalizeIdentity({ email, username }, id);
+    const nextEmail = identity.email !== undefined ? identity.email : user.email;
+    const nextUsername =
+      identity.username !== undefined ? identity.username : user.username;
+    if (!nextEmail && !nextUsername) {
+      throw new BadRequestException('Cần có email hoặc tên đăng nhập');
     }
 
-    await this.repo.update(id, {
-      ...data,
-      ...(data.role !== undefined
-        ? { role: data.role }
-        : roles
-          ? { role: resolveBinaryRole(undefined, roles) }
-          : {}),
-      ...(roles ? { roles } : {}),
-    });
+    Object.assign(user, rest, identity);
+    if (rest.dob !== undefined) user.dob = rest.dob || null;
+    if (password) user.password = await bcrypt.hash(password, 10);
 
+    if (roleIds) {
+      user.roles = await this.roleRepo.find({ where: { id: In(roleIds) } });
+    }
+    if (role !== undefined) user.role = role;
+    else if (roleIds) user.role = resolveBinaryRole(undefined, user.roles);
+
+    await this.repo.save(user);
     return this.findOne(id);
   }
 
