@@ -25,4 +25,15 @@ export class SubmitScoreDto {
   @IsString()
   @MaxLength(40)
   bookType?: string;
+
+  // Điểm tối đa của lượt chơi (số câu × 100, Flip: số thẻ × 10)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  maxScore?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  itemCount?: number;
 }

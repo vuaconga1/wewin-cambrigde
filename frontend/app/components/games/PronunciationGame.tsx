@@ -33,7 +33,7 @@ import {
 } from "@/app/components/games/forest-background";
 
 type Props = PronunciationGameConfig & {
-  onComplete?: (score: number) => void;
+  onComplete?: (score: number, maxScore?: number, itemCount?: number) => void;
   onChooseOtherGame?: () => void;
 };
 
@@ -923,7 +923,7 @@ export function PronunciationGame({
       setStatusType("correct");
       if (!completed) {
         setCompleted(true);
-        onComplete?.(score);
+        onComplete?.(score, playWords.length * 100, playWords.length);
       }
       return;
     }

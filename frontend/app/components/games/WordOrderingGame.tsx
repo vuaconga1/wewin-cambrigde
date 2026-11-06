@@ -18,7 +18,7 @@ import {
 } from "@/app/components/games/forest-background";
 
 type Props = WordOrderingGameConfig & {
-  onComplete?: (score: number) => void;
+  onComplete?: (score: number, maxScore?: number, itemCount?: number) => void;
   onChooseOtherGame?: () => void;
 };
 
@@ -132,7 +132,7 @@ export function WordOrderingGame({
             `🌟 Xuất sắc! Bạn đã hoàn thành tất cả! Tổng điểm: ${nextScore} điểm`,
           );
           setCompleted(true);
-          onComplete?.(nextScore);
+          onComplete?.(nextScore, totalRounds * 100, totalRounds);
         } else {
           playGameSfx("levelComplete");
           setCurrentIndex((prev) => prev + 1);

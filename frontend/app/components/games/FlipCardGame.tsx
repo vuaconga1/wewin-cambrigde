@@ -13,7 +13,7 @@ import {
 import "@/app/components/games/forest-background/forest-animations.css";
 
 type Props = FlipCardGameConfig & {
-  onComplete?: (score: number) => void;
+  onComplete?: (score: number, maxScore?: number, itemCount?: number) => void;
   onChooseOtherGame?: () => void;
 };
 
@@ -46,11 +46,11 @@ export function FlipCardGame({
     if (completed && onComplete && !hasCalledOnComplete.current) {
       hasCalledOnComplete.current = true;
       const timer = setTimeout(() => {
-        onComplete(revealedCount * 10);
+        onComplete(revealedCount * 10, words.length * 10, words.length);
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [completed, onComplete, revealedCount]);
+  }, [completed, onComplete, revealedCount, words.length]);
 
   useEffect(() => {
     if (!completed) {

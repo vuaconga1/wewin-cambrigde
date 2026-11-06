@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpenText, ImageIcon, LayoutGrid, ShieldUser, Swords } from "lucide-react";
+import { BookOpenText, ImageIcon, LayoutGrid, School, ShieldUser, Swords } from "lucide-react";
 import { Routes } from "@/lib/constants/routes";
 
 const navigation = [
@@ -15,6 +15,11 @@ const navigation = [
     href: Routes.MANAGE_USER,
     label: "Quản lý user",
     icon: ShieldUser,
+  },
+  {
+    href: Routes.MANAGE_CLASS,
+    label: "Lớp học & bài tập",
+    icon: School,
   },
   {
     href: Routes.MANAGE_GAME_UNITS,

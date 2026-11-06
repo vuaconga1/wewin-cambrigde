@@ -58,6 +58,8 @@ export const leaderboardService = {
     gameType: string;
     score: number;
     bookType?: string;
+    maxScore?: number;
+    itemCount?: number;
   }) {
     const { data } = await publicClient.post<{ bestScore: number }>(
       "/leaderboard/submit",

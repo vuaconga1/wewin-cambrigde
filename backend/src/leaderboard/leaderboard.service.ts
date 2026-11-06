@@ -1,16 +1,20 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Student } from 'src/entities/student/student.entity';
 import { GameScore } from 'src/entities/game-score/game-score.entity';
 import { MonthlyGameScore } from 'src/entities/game-score/monthly-game-score.entity';
 import { GameUnit } from 'src/entities/game/game-unit.entity';
+import { GameAttempt } from 'src/entities/game-attempt/game-attempt.entity';
+import { StudentService } from 'src/student/student.service';
 import { SubmitScoreDto } from './dto/submit-score.dto';
 import { GetTopDto } from './dto/get-top.dto';
 import { GetMonthlyTopDto } from './dto/get-monthly-top.dto';
 
 @Injectable()
 export class LeaderboardService {
+  private readonly logger = new Logger(LeaderboardService.name);
+
   constructor(
     @InjectRepository(Student)
     private readonly studentRepo: Repository<Student>,
@@ -20,6 +24,9 @@ export class LeaderboardService {
     private readonly monthlyScoreRepo: Repository<MonthlyGameScore>,
     @InjectRepository(GameUnit)
     private readonly gameUnitRepo: Repository<GameUnit>,
+    @InjectRepository(GameAttempt)
+    private readonly attemptRepo: Repository<GameAttempt>,
+    private readonly studentService: StudentService,
   ) {}
 
   private makeGameKey(unitSlug: string, partId: string, gameType: string) {
@@ -44,10 +51,9 @@ export class LeaderboardService {
   }
 
   async submitBestScore(dto: SubmitScoreDto) {
-    const playerId = dto.playerId.trim();
-    const student = await this.studentRepo.findOne({
-      where: { playerId, isActive: true },
-    });
+    const student = await this.studentService.resolveActiveStudent(
+      dto.playerId,
+    );
     if (!student) {
       throw new NotFoundException('ID người chơi không hợp lệ');
     }
@@ -58,6 +64,23 @@ export class LeaderboardService {
     const gameKey = this.makeGameKey(unitSlug, partId, gameType);
     const bookType = await this.resolveBookType(unitSlug, dto.bookType);
     const { year, month } = this.getVietnamYearMonth();
+
+    // Lỗi ghi lịch sử không được làm hỏng việc lưu điểm bảng xếp hạng
+    try {
+      await this.attemptRepo.insert({
+        playerId: student.playerId,
+        studentId: student.id,
+        unitSlug,
+        partId,
+        gameType,
+        bookType,
+        score: dto.score,
+        maxScore: dto.maxScore ?? null,
+        itemCount: dto.itemCount ?? null,
+      });
+    } catch (err) {
+      this.logger.error(`Không ghi được game_attempts: ${String(err)}`);
+    }
 
     const existing = await this.scoreRepo.findOne({
       where: { gameKey, studentId: student.id },
@@ -192,8 +215,8 @@ export class LeaderboardService {
     let me: (typeof ranked)[number] | null = null;
     const playerId = dto.playerId?.trim();
     if (playerId) {
-      const student = await this.studentRepo.findOne({
-        where: { playerId, isActive: true },
+      const student = await this.studentService.resolveActiveStudent(playerId, {
+        createFromUser: false,
       });
       if (student) {
         me = ranked.find((r) => r.studentId === student.id) ?? {

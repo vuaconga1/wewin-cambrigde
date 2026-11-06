@@ -18,7 +18,7 @@ import {
 } from "@/app/components/games/forest-background";
 
 type Props = WordScrambleGameConfig & {
-  onComplete?: (score: number) => void;
+  onComplete?: (score: number, maxScore?: number, itemCount?: number) => void;
   onChooseOtherGame?: () => void;
 };
 
@@ -102,7 +102,7 @@ export function WordScrambleGame({
             `🌟 Xuất sắc! Bạn đã hoàn thành tất cả các từ! Tổng điểm: ${nextScore} điểm`,
           );
           setCompleted(true);
-          onComplete?.(nextScore);
+          onComplete?.(nextScore, playWords.length * 100, playWords.length);
         } else {
           playGameSfx("levelComplete");
           setCurrentIndex((prev) => prev + 1);
@@ -136,7 +136,7 @@ export function WordScrambleGame({
       setStatusType("correct");
       if (!completed) {
         setCompleted(true);
-        onComplete?.(score);
+        onComplete?.(score, playWords.length * 100, playWords.length);
       }
       return;
     }

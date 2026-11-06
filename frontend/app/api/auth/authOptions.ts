@@ -37,6 +37,7 @@ export const authOptions: NextAuthOptions = {
           id: result.user.id,
           name: result.user.name,
           email: result.user.email ?? result.user.username ?? "",
+          username: result.user.username ?? null,
           image: result.user.image ?? null,
           roles: result.user.roles ?? [],
           access_token: result.access_token,
@@ -54,6 +55,7 @@ export const authOptions: NextAuthOptions = {
         token.refresh_token = user.refresh_token;
         token.accessTokenExpires = Date.now() + user.expires_in * 1000;
         token.roles = user.roles;
+        token.username = user.username ?? null;
         token.sub = user.id;
         return token;
       }
@@ -73,6 +75,7 @@ export const authOptions: NextAuthOptions = {
         id: token.sub!,
         name: session.user?.name ?? "",
         email: session.user?.email ?? "",
+        username: token.username ?? null,
         image: session.user?.image ?? null,
         roles: token.roles ?? [],
       };

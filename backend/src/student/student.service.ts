@@ -25,11 +25,59 @@ export class StudentService {
     };
   }
 
-  async verifyByPlayerId(playerId: string) {
+  // Dòng trùng khớp chính xác (kể cả hoa thường) đứng đầu
+  private async findByPlayerIdInsensitive(playerId: string) {
+    const rows = await this.repo
+      .createQueryBuilder('s')
+      .where('LOWER(s.playerId) = LOWER(:playerId)', { playerId })
+      .getMany();
+    return rows.sort(
+      (a, b) => Number(b.playerId === playerId) - Number(a.playerId === playerId),
+    );
+  }
+
+  /**
+   * Tìm học sinh đang hoạt động theo Mã HV, không phân biệt hoa thường.
+   * Nếu chưa có trong bảng student nhưng có tài khoản user (username = Mã HV)
+   * thì tạo / kích hoạt lại student từ tài khoản đó.
+   */
+  async resolveActiveStudent(
+    playerId: string,
+    { createFromUser = true }: { createFromUser?: boolean } = {},
+  ): Promise<Student | null> {
     const normalized = playerId.trim();
-    const student = await this.repo.findOne({
-      where: { playerId: normalized, isActive: true },
-    });
+    if (!normalized) return null;
+
+    const matches = await this.findByPlayerIdInsensitive(normalized);
+    const active = matches.find((s) => s.isActive);
+    if (active || !createFromUser) return active ?? null;
+
+    const [user] = await this.repo.manager.query<
+      { username: string; name: string }[]
+    >(
+      `SELECT username, name FROM "user"
+       WHERE LOWER(username) = LOWER($1) AND is_active = true AND delete_at IS NULL
+       LIMIT 1`,
+      [normalized],
+    );
+    if (!user) return null;
+
+    const existing = matches[0];
+    if (existing) {
+      existing.isActive = true;
+      return this.repo.save(existing);
+    }
+    return this.repo.save(
+      this.repo.create({
+        playerId: user.username,
+        name: user.name || user.username,
+        isActive: true,
+      }),
+    );
+  }
+
+  async verifyByPlayerId(playerId: string) {
+    const student = await this.resolveActiveStudent(playerId);
 
     if (!student) {
       throw new NotFoundException('ID người chơi không hợp lệ');
@@ -48,9 +96,7 @@ export class StudentService {
     const normalized = playerId.trim();
     const fallbackName = (name && name.trim()) || normalized;
 
-    const existing = await this.repo.findOne({
-      where: { playerId: normalized },
-    });
+    const [existing] = await this.findByPlayerIdInsensitive(normalized);
 
     if (existing) {
       let changed = false;

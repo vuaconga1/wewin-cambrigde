@@ -29,7 +29,9 @@
     "import:images:approve": "ts-node -r tsconfig-paths/register scripts/import-images.ts --approve",
     "verify:vocab-assets": "ts-node -r tsconfig-paths/register scripts/verify-vocabulary-assets.ts",
     "seed:neon": "ts-node -r tsconfig-paths/register scripts/seed-vocabulary.ts && ts-node -r tsconfig-paths/register scripts/seed-user.ts",
-    "copy:neon": "ts-node -r tsconfig-paths/register scripts/copy-db-to-neon.ts"
+    "copy:neon": "ts-node -r tsconfig-paths/register scripts/copy-db-to-neon.ts",
+    "migrate:homework": "ts-node -r tsconfig-paths/register scripts/migrate-homework.ts",
+    "import:classes": "ts-node -r tsconfig-paths/register scripts/import-classes.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.11",

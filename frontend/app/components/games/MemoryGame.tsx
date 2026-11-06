@@ -19,7 +19,7 @@ import {
 } from "@/app/components/games/forest-background";
 
 type Props = MemoryGameConfig & {
-  onComplete?: (score: number) => void;
+  onComplete?: (score: number, maxScore?: number, itemCount?: number) => void;
   onChooseOtherGame?: () => void;
 };
 
@@ -174,7 +174,7 @@ export function MemoryGame({
                   `🌟 Xuất sắc! Bạn đã hoàn thành tất cả các cặp! Tổng điểm: ${newScore} điểm`,
                 );
                 setCompleted(true);
-                onComplete?.(newScore);
+                onComplete?.(newScore, pairTotal * 100, pairTotal);
               }, 1000);
             }
 

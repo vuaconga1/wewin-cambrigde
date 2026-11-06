@@ -80,7 +80,7 @@ type GameMenuProps = {
   scrambleTitle?: string;
   orderingShowScore?: boolean;
   scrambleShowScore?: boolean;
-  onGameComplete?: (game: GameKey, score?: number) => void;
+  onGameComplete?: (game: GameKey, score?: number, maxScore?: number, itemCount?: number) => void;
   slug?: string;
   bookType?: string;
   partId?: string;
@@ -563,35 +563,35 @@ export function GameMenu({
           {currentView === "flip" && (
             <FlipCardGame
               {...flipCardConfig}
-              onComplete={(score) => onGameComplete?.("flip", score)}
+              onComplete={(score, maxScore, itemCount) => onGameComplete?.("flip", score, maxScore, itemCount)}
               onChooseOtherGame={goToMenu}
             />
           )}
           {currentView === "speak" && (
             <PronunciationGame
               {...pronunciationConfig}
-              onComplete={(score) => onGameComplete?.("speak", score)}
+              onComplete={(score, maxScore, itemCount) => onGameComplete?.("speak", score, maxScore, itemCount)}
               onChooseOtherGame={goToMenu}
             />
           )}
           {currentView === "memory" && (
             <MemoryGame
               {...memoryConfig}
-              onComplete={(score) => onGameComplete?.("memory", score)}
+              onComplete={(score, maxScore, itemCount) => onGameComplete?.("memory", score, maxScore, itemCount)}
               onChooseOtherGame={goToMenu}
             />
           )}
           {currentView === "ordering" && (
             <WordOrderingGame
               {...orderingConfig}
-              onComplete={(score) => onGameComplete?.("ordering", score)}
+              onComplete={(score, maxScore, itemCount) => onGameComplete?.("ordering", score, maxScore, itemCount)}
               onChooseOtherGame={goToMenu}
             />
           )}
           {currentView === "scramble" && (
             <WordScrambleGame
               {...scrambleConfig}
-              onComplete={(score) => onGameComplete?.("scramble", score)}
+              onComplete={(score, maxScore, itemCount) => onGameComplete?.("scramble", score, maxScore, itemCount)}
               onChooseOtherGame={goToMenu}
             />
           )}

@@ -657,7 +657,12 @@ const handleReset = () => {
 
 const processingGamesRef = useRef<Set<GameKey>>(new Set());
 
-const handleGameComplete = (game: GameKey, score?: number) => {
+const handleGameComplete = (
+  game: GameKey,
+  score?: number,
+  maxScore?: number,
+  itemCount?: number,
+) => {
   if (!enabledGames.includes(game)) return;
 
   // Submit điểm lên bảng xếp hạng kể cả khi chơi lại (best-score upsert).
@@ -677,6 +682,8 @@ const handleGameComplete = (game: GameKey, score?: number) => {
         gameType: game,
         score,
         bookType: unit.bookType,
+        maxScore: maxScore && maxScore > 0 ? maxScore : undefined,
+        itemCount: itemCount && itemCount > 0 ? itemCount : undefined,
       })
       .then(() => {
         setLeaderboardRefreshToken((v) => v + 1);
