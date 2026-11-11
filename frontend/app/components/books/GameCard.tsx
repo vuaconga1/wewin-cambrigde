@@ -19,7 +19,7 @@ const LEVEL_IMAGE: Record<string, string> = {
 
 const GameCard: React.FC<GameCardProps> = ({ book }) => {
   const level = resolveLevelKey(book.id);
-  const imageSrc = LEVEL_IMAGE[level];
+  const imageSrc = book.imgUrl || LEVEL_IMAGE[level];
 
   return (
     <Link

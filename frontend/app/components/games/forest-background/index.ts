@@ -16,6 +16,7 @@ export {
   FOREST_THEMES,
   FOREST_SEASONS,
   FOREST_STORAGE_KEY,
+  isForestSeason,
   type ForestSeason,
   type ForestThemeConfig,
 } from "./themes";

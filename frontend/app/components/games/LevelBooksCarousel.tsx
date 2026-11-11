@@ -143,7 +143,7 @@ export function LevelBooksCarousel({ books }: Props) {
   const renderCard = (slot: StackSlot) => {
     const isCenter = slot.position === "center";
     const level = resolveLevelKey(slot.book.id);
-    const imageSrc = LEVEL_IMAGE[level];
+    const imageSrc = slot.book.imgUrl || LEVEL_IMAGE[level];
     const positionStyles = peekTransform(slot.position, wide);
 
     const body = (

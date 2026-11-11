@@ -50,6 +50,14 @@ const gameBooks: Book[] = [
     description: "",
     gameUrl: "/games/flyers",
   },
+  {
+    id: "game_storyland",
+    name: "WEWIN STORYLAND",
+    status: "active",
+    imgUrl: "/assets/levels/storyland.png",
+    description: "50 truyện song ngữ Anh–Việt",
+    gameUrl: "/games/storyland",
+  },
 ];
 
 function GamesLibraryContent() {
@@ -83,8 +91,8 @@ function GamesLibraryContent() {
             <LevelBooksCarousel books={activeBooks} />
           </div>
 
-          {/* Desktop / Windows: 5-column grid */}
-          <div className="hidden w-full grid-cols-5 items-center gap-2 lg:grid xl:gap-3 2xl:gap-4">
+          {/* Desktop / Windows: 6-column grid */}
+          <div className="hidden w-full grid-cols-6 items-center gap-2 lg:grid xl:gap-3 2xl:gap-4">
             {activeBooks.map((book) => (
               <GameCard key={book.id} book={book} />
             ))}
