@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
+  pauseSharedAudio,
+  setBgmSuppressed,
+} from "@/app/components/audio";
+import {
   FantasyForestBackground,
   isForestSeason,
   useForestTheme,
@@ -15,6 +19,15 @@ export function StorylandFrame() {
   const { theme, setTheme, config } = useForestTheme();
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
+
+  // Tự động tắt nhạc nền khi vào Storyland và khôi phục khi rời đi
+  useEffect(() => {
+    setBgmSuppressed(true);
+    pauseSharedAudio();
+    return () => {
+      setBgmSuppressed(false);
+    };
+  }, []);
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");

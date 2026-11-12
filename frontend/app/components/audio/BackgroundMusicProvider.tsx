@@ -9,12 +9,15 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
 
 import {
   applyBgmSettings,
+  isBgmSuppressed,
   pauseSharedAudio,
   readStoredBgmSettings,
   resetAutoplayBinding,
+  setBgmSuppressed,
   stopSharedAudio,
   tryStartBgmPlayback,
   writeStoredBgmSettings,
@@ -41,11 +44,22 @@ const BackgroundMusicContext = createContext<BackgroundMusicContextValue | null>
 );
 
 export function BackgroundMusicProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const [settings, setSettings] = useState<BgmSettings>(BGM_DEFAULT_SETTINGS);
   const [isPlaying, setIsPlaying] = useState(false);
   const [needsInteraction, setNeedsInteraction] = useState(false);
 
   useEffect(() => {
+    const isStoryland = Boolean(pathname?.startsWith("/games/storyland"));
+    if (isStoryland) {
+      setBgmSuppressed(true);
+      pauseSharedAudio();
+      setIsPlaying(false);
+      setNeedsInteraction(false);
+      return;
+    }
+
+    setBgmSuppressed(false);
     const stored = readStoredBgmSettings();
     setSettings(stored);
     applyBgmSettings(stored);
@@ -55,8 +69,11 @@ export function BackgroundMusicProvider({ children }: { children: ReactNode }) {
         setIsPlaying(result === "playing");
         setNeedsInteraction(result === "blocked");
       });
+    } else {
+      setIsPlaying(false);
+      setNeedsInteraction(false);
     }
-  }, []);
+  }, [pathname]);
 
   const setVolume = useCallback((volume: number) => {
     const clamped = Math.min(1, Math.max(0, volume));
@@ -65,7 +82,7 @@ export function BackgroundMusicProvider({ children }: { children: ReactNode }) {
       writeStoredBgmSettings(next);
       applyBgmSettings(next);
 
-      if (clamped > 0) {
+      if (clamped > 0 && !isBgmSuppressed()) {
         void tryStartBgmPlayback(next.trackId).then((result) => {
           setIsPlaying(result === "playing");
           setNeedsInteraction(result === "blocked");
@@ -92,7 +109,7 @@ export function BackgroundMusicProvider({ children }: { children: ReactNode }) {
         writeStoredBgmSettings(next);
         applyBgmSettings(next);
 
-        if (!next.muted && next.volume > 0) {
+        if (!next.muted && next.volume > 0 && !isBgmSuppressed()) {
           void tryStartBgmPlayback(trackId).then((result) => {
             setIsPlaying(result === "playing");
             setNeedsInteraction(result === "blocked");
@@ -115,7 +132,7 @@ export function BackgroundMusicProvider({ children }: { children: ReactNode }) {
       writeStoredBgmSettings(next);
       applyBgmSettings(next);
 
-      if (next.muted) {
+      if (next.muted || isBgmSuppressed()) {
         pauseSharedAudio();
         setIsPlaying(false);
         setNeedsInteraction(false);

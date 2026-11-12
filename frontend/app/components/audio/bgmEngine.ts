@@ -11,6 +11,7 @@ let sharedAudio: HTMLAudioElement | null = null;
 let sharedTrackSrc: string | null = null;
 let autoplayBound = false;
 let speechHoldActive = false;
+let bgmSuppressed = false;
 const loopBound = new WeakSet<HTMLAudioElement>();
 
 /** Đảm bảo nhạc nền lặp lại khi hết bài (loop + fallback ended). */
@@ -27,7 +28,7 @@ function ensureBgmLoop(audio: HTMLAudioElement) {
   audio.addEventListener("canplaythrough", markLoopReady);
 
   audio.addEventListener("ended", () => {
-    if (speechHoldActive || audio.muted) return;
+    if (speechHoldActive || bgmSuppressed || audio.muted) return;
     audio.currentTime = 0;
     void audio.play().catch(() => {});
   });
@@ -67,6 +68,18 @@ export function setSpeechAudioHold(active: boolean) {
 
 export function isSpeechAudioHoldActive() {
   return speechHoldActive;
+}
+
+/** Chặn BGM tạm thời cho các trang cần yên tĩnh (như Storyland đọc truyện). */
+export function setBgmSuppressed(suppressed: boolean) {
+  bgmSuppressed = suppressed;
+  if (suppressed) {
+    pauseSharedAudio();
+  }
+}
+
+export function isBgmSuppressed(): boolean {
+  return bgmSuppressed;
 }
 
 /** Dừng hẳn — chỉ khi đổi bài hoặc reset player. */
@@ -110,7 +123,7 @@ export function writeStoredBgmSettings(settings: BgmSettings) {
 }
 
 export function applyBgmSettings(next: BgmSettings) {
-  if (speechHoldActive) return;
+  if (speechHoldActive || bgmSuppressed) return;
   const track = getBgmTrack(next.trackId);
   const audio = getSharedAudio(track.src);
   if (!audio) return;
@@ -129,7 +142,7 @@ function bindAutoplayUnlock(onPlay: () => void) {
   };
 
   const unlock = () => {
-    if (speechHoldActive) {
+    if (speechHoldActive || bgmSuppressed) {
       autoplayBound = false;
       return;
     }
@@ -145,7 +158,7 @@ function bindAutoplayUnlock(onPlay: () => void) {
 export async function tryStartBgmPlayback(
   trackId: BgmTrackId,
 ): Promise<"playing" | "blocked" | "muted"> {
-  if (speechHoldActive) return "muted";
+  if (speechHoldActive || bgmSuppressed) return "muted";
 
   const track = getBgmTrack(trackId);
   const audio = getSharedAudio(track.src);
@@ -153,6 +166,10 @@ export async function tryStartBgmPlayback(
 
   try {
     await audio.play();
+    if (speechHoldActive || bgmSuppressed) {
+      audio.pause();
+      return "muted";
+    }
     return "playing";
   } catch {
     bindAutoplayUnlock(() => {});

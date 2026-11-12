@@ -7,6 +7,14 @@ export {
 export { GlobalAudioControls } from "./GlobalAudioControls";
 export { SystemSoundControls } from "./SystemSoundControls";
 export {
+  applyBgmSettings,
+  isBgmSuppressed,
+  pauseSharedAudio,
+  setBgmSuppressed,
+  stopSharedAudio,
+  tryStartBgmPlayback,
+} from "./bgmEngine";
+export {
   BGM_DEFAULT_SETTINGS,
   BGM_DEFAULT_TRACK_ID,
   BGM_DEFAULT_VOLUME,
