@@ -7,7 +7,7 @@ interface GoogleAnalyticsProps {
 }
 
 export function GoogleAnalytics({
-  gaId = process.env.NEXT_PUBLIC_GA_ID,
+  gaId = process.env.NEXT_PUBLIC_GA_ID || "G-BHPHF3EMKF",
 }: GoogleAnalyticsProps) {
   if (!gaId) return null;
 
