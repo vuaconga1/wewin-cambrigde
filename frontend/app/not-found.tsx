@@ -2,19 +2,28 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { Search, Home, ArrowLeft } from "lucide-react";
+import { Search, Home, ArrowLeft, Globe } from "lucide-react";
 import { Routes } from "../lib/constants/routes";
+import { trackEvent, trackOutboundToMainSite } from "../lib/gtag";
 
 export default function NotFoundPage() {
   const [particles, setParticles] = useState<{ left: string; top: string }[]>([]);
 
   useEffect(() => {
+    // 1. Tạo hạt hiệu ứng background
     const generated = Array.from({ length: 8 }, () => ({
       left: `${Math.random() * 100}%`,
       top: `${Math.random() * 100}%`,
     }));
     setParticles(generated);
+
+    // 2. Gửi sự kiện 404 về GA4 để theo dõi URL hỏng/không tồn tại
+    trackEvent("page_not_found", {
+      page_path: typeof window !== "undefined" ? window.location.pathname : "",
+      page_location: typeof window !== "undefined" ? window.location.href : "",
+    });
   }, []);
 
   return (
@@ -97,13 +106,13 @@ export default function NotFoundPage() {
             transition={{ delay: 0.7 }}
             className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center"
           >
-            <a
+            <Link
               href={Routes.HOME}
               className="group bg-linear-to-r from-blue-600 to-indigo-600 text-white px-6 sm:px-10 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
             >
               <Home className="w-5 h-5 group-hover:rotate-12 transition-transform" />
               Trang chủ
-            </a>
+            </Link>
 
             <button
               onClick={() => window.history.back()}
@@ -120,9 +129,19 @@ export default function NotFoundPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1 }}
-          className="mt-6 sm:mt-8 text-gray-500 text-xs sm:text-sm md:text-base"
+          className="mt-6 sm:mt-8 text-gray-500 text-xs sm:text-sm md:text-base flex items-center justify-center gap-2"
         >
-          <p>Hoặc thử tìm kiếm những gì bạn cần từ trang chủ</p>
+          <p>Hoặc truy cập website chính:</p>
+          <a
+            href="https://wewin.edu.vn"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => trackOutboundToMainSite("https://wewin.edu.vn")}
+            className="font-medium text-blue-600 hover:text-blue-700 underline flex items-center gap-1"
+          >
+            <Globe className="w-4 h-4" />
+            wewin.edu.vn
+          </a>
         </motion.div>
       </motion.div>
 
@@ -145,8 +164,14 @@ export default function NotFoundPage() {
         />
       ))}
 
-      {/* ✨ Signature WeWIN */}
-      <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 flex items-center gap-2 sm:gap-3 opacity-40 hover:opacity-80 transition-all duration-300">
+      {/* ✨ Signature WeWIN với Outbound Tracking */}
+      <a
+        href="https://wewin.edu.vn"
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => trackOutboundToMainSite("https://wewin.edu.vn")}
+        className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 flex items-center gap-2 sm:gap-3 opacity-60 hover:opacity-100 transition-all duration-300"
+      >
         <Image
           src="/assets/logo.png"
           alt="WeWIN Logo"
@@ -157,7 +182,7 @@ export default function NotFoundPage() {
         <span className="text-xs sm:text-sm font-semibold text-[#0E4BA9] whitespace-nowrap">
           Powered by <span className="text-[#E4C28E]">WeWIN Education</span>
         </span>
-      </div>
+      </a>
     </div>
   );
 }

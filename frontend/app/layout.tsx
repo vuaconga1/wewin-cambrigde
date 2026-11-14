@@ -6,6 +6,7 @@ import ProvidersLayout from "./components/ProvidersLayout";
 import AuthHydrator from "./components/auth/authHydrator";
 import StudentSsoHydrator from "./components/auth/studentSsoHydrator";
 import HomeworkPopup from "./components/homework/HomeworkPopup";
+import { GoogleAnalytics } from "./components/analytics/GoogleAnalytics";
 
 const lexend = Lexend({
   subsets: ["latin"],
@@ -29,10 +30,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="h-full">
+    <html lang="vi" className="h-full">
       <body
         className={`${lexend.className} antialiased bg-pink-50 text-gray-900 flex flex-col min-h-screen min-w-[320px] overflow-x-hidden`}
       >
+        {/* Google Analytics 4 */}
+        <GoogleAnalytics />
+
         {/* ✅ Wrap toàn app trong SessionProvider */}
         <Providers>
           <AuthHydrator />
